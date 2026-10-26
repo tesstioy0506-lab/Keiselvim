@@ -1,7 +1,7 @@
 --[[
     ╔══════════════════════════════════════════════════════════════════════╗
-    ║           KEI SELVIM — COORDINATE ZONE FARMER v18.0                  ║
-    ║           Custom Safe Zone • Custom Farm Zones • Auto Steal          ║
+    ║           KEI SELVIM — COORDINATE ZONE FARMER v19.0                  ║
+    ║           Custom Safe Zone • Farm Zones • Manual Teleports           ║
     ╚══════════════════════════════════════════════════════════════════════╝
 ]]
 
@@ -151,7 +151,6 @@ local function startAutoSteal()
             if char and char:FindFirstChild("HumanoidRootPart") then
                 local myPos = char.HumanoidRootPart.Position
                 
-                -- Scan semua map (bisa lo batasin ke zona farm tertentu kalau mau)
                 for _, obj in ipairs(Workspace:GetDescendants()) do
                     if isBestEgg(obj) then
                         local dist = (obj.Position - myPos).Magnitude
@@ -172,13 +171,14 @@ end
 local function buildUI()
     local gui = create("ScreenGui", { Name = "ZoneFarmerUI", ResetOnSpawn = false, Parent = CoreGui })
     
-    local main = create("Frame", { Size = UDim2.new(0, 280, 0, 340), Position = UDim2.new(0.5, -140, 0.5, -170), BackgroundColor3 = C.BG, BorderSizePixel = 0, Parent = gui })
+    -- Frame Utama diperbesar buat nampung tombol teleport
+    local main = create("Frame", { Size = UDim2.new(0, 320, 0, 450), Position = UDim2.new(0.5, -160, 0.5, -225), BackgroundColor3 = C.BG, BorderSizePixel = 0, Parent = gui })
     addCorner(main, 10); addStroke(main, C.BORDER)
 
     -- Header
     local header = create("Frame", { Size = UDim2.new(1, 0, 0, 40), BackgroundColor3 = C.PANEL, BorderSizePixel = 0, Parent = main })
     addCorner(header, 10)
-    create("TextLabel", { Size = UDim2.new(1, -40, 1, 0), Position = UDim2.new(0, 15, 0, 0), BackgroundTransparency = 1, Text = "KEI SELVIM (V18)", TextColor3 = C.TEXT, Font = Enum.Font.GothamBold, TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left, Parent = header })
+    create("TextLabel", { Size = UDim2.new(1, -40, 1, 0), Position = UDim2.new(0, 15, 0, 0), BackgroundTransparency = 1, Text = "KEI SELVIM (V19)", TextColor3 = C.TEXT, Font = Enum.Font.GothamBold, TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left, Parent = header })
     
     local closeBtn = create("TextButton", { Size = UDim2.new(0, 24, 0, 24), Position = UDim2.new(1, -32, 0, 8), BackgroundColor3 = C.RED, Text = "✕", TextColor3 = C.TEXT, Font = Enum.Font.GothamBold, TextSize = 12, BorderSizePixel = 0, Parent = header })
     addCorner(closeBtn, 6)
@@ -203,7 +203,7 @@ local function buildUI()
     end)
 
     -- Fitur: Auto Steal Toggle
-    local rowSteal = create("Frame", { Size = UDim2.new(1, -20, 0, 30), Position = UDim2.new(0, 10, 0, 110), BackgroundTransparency = 1, Parent = main })
+    local rowSteal = create("Frame", { Size = UDim2.new(1, -20, 0, 30), Position = UDim2.new(0, 10, 0, 105), BackgroundTransparency = 1, Parent = main })
     create("TextLabel", { Size = UDim2.new(0.7, 0, 1, 0), BackgroundTransparency = 1, Text = "Auto Steal (Best Egg)", TextColor3 = C.TEXT, Font = Enum.Font.Gotham, TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left, Parent = rowSteal })
     
     local btnSteal = create("TextButton", { Size = UDim2.new(0, 45, 0, 24), Position = UDim2.new(1, -45, 0, 3), BackgroundColor3 = C.BOX, Text = "OFF", TextColor3 = C.TEXT, Font = Enum.Font.GothamBold, TextSize = 11, BorderSizePixel = 0, Parent = rowSteal })
@@ -217,8 +217,8 @@ local function buildUI()
     end)
 
     -- Fitur: Auto Farm Zone Toggle
-    local rowFarm = create("Frame", { Size = UDim2.new(1, -20, 0, 30), Position = UDim2.new(0, 10, 0, 150), BackgroundTransparency = 1, Parent = main })
-    create("TextLabel", { Size = UDim2.new(0.7, 0, 1, 0), BackgroundTransparency = 1, Text = "Auto Balik ke Zona Farm", TextColor3 = C.TEXT, Font = Enum.Font.Gotham, TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left, Parent = rowFarm })
+    local rowFarm = create("Frame", { Size = UDim2.new(1, -20, 0, 30), Position = UDim2.new(0, 10, 0, 145), BackgroundTransparency = 1, Parent = main })
+    create("TextLabel", { Size = UDim2.new(0.7, 0, 1, 0), BackgroundTransparency = 1, Text = "Auto Balik ke Zona", TextColor3 = C.TEXT, Font = Enum.Font.Gotham, TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left, Parent = rowFarm })
     
     local btnFarm = create("TextButton", { Size = UDim2.new(0, 45, 0, 24), Position = UDim2.new(1, -45, 0, 3), BackgroundColor3 = C.BOX, Text = "OFF", TextColor3 = C.TEXT, Font = Enum.Font.GothamBold, TextSize = 11, BorderSizePixel = 0, Parent = rowFarm })
     addCorner(btnFarm, 6); addStroke(btnFarm, C.BORDER)
@@ -229,29 +229,30 @@ local function buildUI()
         btnFarm.BackgroundColor3 = State.AutoFarmZone and C.GREEN or C.BOX
     end)
 
-    -- Zona Selector (Dropdown Sederhana)
-    create("TextLabel", { Size = UDim2.new(1, -20, 0, 20), Position = UDim2.new(0, 10, 0, 190), BackgroundTransparency = 1, Text = "Pilih Zona Target:", TextColor3 = C.DIM, Font = Enum.Font.Gotham, TextSize = 11, TextXAlignment = Enum.TextXAlignment.Left, Parent = main })
+    -- Zona Selector (Target Auto Farm)
+    create("TextLabel", { Size = UDim2.new(1, -20, 0, 20), Position = UDim2.new(0, 10, 0, 185), BackgroundTransparency = 1, Text = "Target Auto Farm:", TextColor3 = C.DIM, Font = Enum.Font.Gotham, TextSize = 11, TextXAlignment = Enum.TextXAlignment.Left, Parent = main })
 
-    local zonaContainer = create("Frame", { Size = UDim2.new(1, -20, 0, 80), Position = UDim2.new(0, 10, 0, 215), BackgroundTransparency = 1, Parent = main })
-    local layout = create("UIGridLayout", { CellSize = UDim2.new(0.33, -5, 0, 24), CellPadding = UDim2.new(0, 5, 0, 5), Parent = zonaContainer })
+    local zonaContainer = create("Frame", { Size = UDim2.new(1, -20, 0, 55), Position = UDim2.new(0, 10, 0, 205), BackgroundTransparency = 1, Parent = main })
+    create("UIGridLayout", { CellSize = UDim2.new(0.11, -2, 0, 24), CellPadding = UDim2.new(0, 2, 0, 5), Parent = zonaContainer })
 
-    for i, zone in ipairs(COORDS.FarmZones) do
+    for i = 1, 9 do
         local zBtn = create("TextButton", { BackgroundColor3 = (i == 1) and C.ACCENT or C.BOX, Text = tostring(i), TextColor3 = C.TEXT, Font = Enum.Font.GothamBold, TextSize = 11, BorderSizePixel = 0, Parent = zonaContainer })
         addCorner(zBtn, 4); addStroke(zBtn, C.BORDER)
         
         zBtn.MouseButton1Click:Connect(function()
             State.SelectedZone = i
             for _, child in ipairs(zonaContainer:GetChildren()) do
-                if child:IsA("TextButton") then
-                    child.BackgroundColor3 = C.BOX
-                end
+                if child:IsA("TextButton") then child.BackgroundColor3 = C.BOX end
             end
             zBtn.BackgroundColor3 = C.ACCENT
         end)
     end
 
-    -- Teleport ke Safe Zone Manual
-    local btnSafe = create("TextButton", { Size = UDim2.new(1, -20, 0, 30), Position = UDim2.new(0, 10, 1, -50), BackgroundColor3 = C.RED, Text = "Teleport ke Safe Zone", TextColor3 = C.TEXT, Font = Enum.Font.GothamBold, TextSize = 12, BorderSizePixel = 0, Parent = main })
+    -- ═══════════ FITUR BARU: TOMBOL TELEPORT MANUAL ═══════════
+    create("TextLabel", { Size = UDim2.new(1, -20, 0, 20), Position = UDim2.new(0, 10, 0, 275), BackgroundTransparency = 1, Text = "Menu Teleport Cepat:", TextColor3 = C.DIM, Font = Enum.Font.Gotham, TextSize = 11, TextXAlignment = Enum.TextXAlignment.Left, Parent = main })
+
+    -- Tombol Safe Zone (Full Width)
+    local btnSafe = create("TextButton", { Size = UDim2.new(1, -20, 0, 30), Position = UDim2.new(0, 10, 0, 295), BackgroundColor3 = C.RED, Text = "🛡️ Teleport ke Safe Zone", TextColor3 = C.TEXT, Font = Enum.Font.GothamBold, TextSize = 12, BorderSizePixel = 0, Parent = main })
     addCorner(btnSafe, 6)
     btnSafe.MouseButton1Click:Connect(function()
         local char = LocalPlayer.Character
@@ -259,6 +260,22 @@ local function buildUI()
             char.HumanoidRootPart.CFrame = CFrame.new(COORDS.SafeZone)
         end
     end)
+
+    -- Tombol Zona 1-9 (Grid 3x3)
+    local tpContainer = create("Frame", { Size = UDim2.new(1, -20, 0, 85), Position = UDim2.new(0, 10, 0, 335), BackgroundTransparency = 1, Parent = main })
+    create("UIGridLayout", { CellSize = UDim2.new(0.33, -4, 0, 25), CellPadding = UDim2.new(0, 4, 0, 5), Parent = tpContainer })
+
+    for i, zone in ipairs(COORDS.FarmZones) do
+        local tpBtn = create("TextButton", { BackgroundColor3 = C.PANEL, Text = "📍 " .. zone.name, TextColor3 = C.TEXT, Font = Enum.Font.Gotham, TextSize = 10, BorderSizePixel = 0, Parent = tpContainer })
+        addCorner(tpBtn, 4); addStroke(tpBtn, C.BORDER)
+        
+        tpBtn.MouseButton1Click:Connect(function()
+            local char = LocalPlayer.Character
+            if char and char:FindFirstChild("HumanoidRootPart") then
+                char.HumanoidRootPart.CFrame = CFrame.new(zone.pos)
+            end
+        end)
+    end
 
     -- Drag Logic
     local dragging, dragStart, startPos
