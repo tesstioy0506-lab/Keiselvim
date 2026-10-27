@@ -176,6 +176,25 @@ end)(function()
     local v281 = game:GetService("VirtualInputManager")
     local v1500 = game:GetService("CoreGui")
     local v282 = v1447.LocalPlayer
+    
+    -- GUNAKAN REMOTE ASLI DARI GAME
+    local Remotes = v280:WaitForChild("Remotes", 10)
+    local ClaimRemote = nil
+    
+    -- Cari remote yang namanya ada "Claim" atau "Take" atau "Steal"
+    if Remotes then
+        for _, remote in ipairs(Remotes:GetDescendants()) do
+            if remote:IsA("RemoteEvent") or remote:IsA("RemoteFunction") then
+                local name = string.lower(remote.Name)
+                if string.find(name, "claim") or string.find(name, "take") or string.find(name, "steal") or string.find(name, "pack") then
+                    ClaimRemote = remote
+                    print("[AutoSteal] Ketemu Remote:", remote:GetFullName())
+                    break
+                end
+            end
+        end
+    end
+
     if v1500:FindFirstChild("SpiritualGamingAnimePackGui") then
         v1500.SpiritualGamingAnimePackGui:Destroy()
     end
@@ -337,17 +356,18 @@ end)(function()
         end)
         return v708
     end
+    
+    -- ═══════════════════════════════════════════════════════════════
+    -- FIX AUTO STEAL (NEMBAK REMOTE ASLI, BUKAN TOMBOL E)
+    -- ═══════════════════════════════════════════════════════════════
     v289 = function(v247, v248)
         local v274 = v247
         if v248 then
-            if v288[v274] then
-                return
-            end
+            if v288[v274] then return end
             local v275 = true
             local v891 = {}
             v891.stop = function()
                 v275 = false
-                return
             end
             v288[v274] = v891
             task.spawn(function()
@@ -359,18 +379,10 @@ end)(function()
                     local v886 = v753:WaitForChild("HumanoidRootPart", 2)
                     if v886 then
                         local v874 = v279:FindFirstChild("Game")
-                        local v878 = v874
-                        if v878 then
-                            v878 = v874:FindFirstChild("Packs")
-                        end
-                        local v831 = v878
-                        if v831 then
-                            v831 = v878:FindFirstChild("Stage" .. v274)
-                        end
-                        local v826 = v831
-                        if v826 then
-                            v826 = v831:FindFirstChild("SpawnedPacks")
-                        end
+                        local v878 = v874 and v874:FindFirstChild("Packs")
+                        local v831 = v878 and v878:FindFirstChild("Stage" .. v274)
+                        local v826 = v831 and v831:FindFirstChild("SpawnedPacks")
+                        
                         if v826 then
                             local v796 = {}
                             for v771, v811 in ipairs(v826:GetChildren()) do
@@ -378,20 +390,35 @@ end)(function()
                                     table.insert(v796, v811)
                                 end
                             end
+                            
                             if #v796 > 0 then
-                                -- GUBAH BAGIAN INI: Ambil pack & Force Prompt
-                                local v811 = v796[1] -- Ambil pack pertama
+                                -- Ambil pack pertama
+                                local v811 = v796[1] 
                                 local v859 = v811:GetPivot()
-                                local v813 = 0
-                                v886.CFrame = v859 + Vector3.new(v813, 3, v813)
-                                task.wait(0.2)
                                 
-                                -- Force Prompt / Touch (Biar server detect kita ngambil)
+                                -- Teleport ke pack
+                                v886.CFrame = v859 + Vector3.new(0, 3, 0)
+                                task.wait(0.3) -- Tunggu bentar biar server detect posisi
+                                
+                                -- 1. Nembak Remote Claim (Bypass Gamepaused)
+                                if ClaimRemote then
+                                    pcall(function()
+                                        if ClaimRemote:IsA("RemoteEvent") then
+                                            ClaimRemote:FireServer(v811)
+                                        elseif ClaimRemote:IsA("RemoteFunction") then
+                                            ClaimRemote:InvokeServer(v811)
+                                        end
+                                    end)
+                                end
+                                
+                                -- 2. Backup pake ProximityPrompt
                                 for _, vPrompt in ipairs(v811:GetDescendants()) do
                                     if vPrompt:IsA("ProximityPrompt") then
                                         pcall(function() fireproximityprompt(vPrompt) end)
                                     end
                                 end
+                                
+                                -- 3. Backup pake Touch
                                 pcall(function()
                                     local partToTouch = v811.PrimaryPart or v811:FindFirstChildWhichIsA("BasePart")
                                     if partToTouch then
@@ -401,30 +428,113 @@ end)(function()
                                     end
                                 end)
                                 
-                                -- Backup pake VirtualInputManager (Tombol E)
-                                v281:SendKeyEvent(true, Enum.KeyCode.E, false, game)
-                                task.wait(0.1)
-                                v281:SendKeyEvent(false, Enum.KeyCode.E, false, game)
+                                task.wait(1) -- Tunggu animasi ngambil selesai
                                 
-                                task.wait(0.8) -- Jeda nunggu animasi ngambil selesai
-                                v886.CFrame = CFrame.new(1170, 71, -364) -- Balik ke base
+                                -- Balik ke Base
+                                v886.CFrame = CFrame.new(1170, 71, -364) 
                                 task.wait(0.5)
                             end
                         end
                     end
                     task.wait(0.5)
                 end
-                return
             end)
         else
             if v288[v274] then
-                local v907 = v288
-                v907[v274].stop()
-                v907[v274] = nil
+                v288[v274].stop()
+                v288[v274] = nil
             end
         end
-        return
     end
+    
+    local v1349 = Instance.new("Frame")
+    v1349.Name = "AutoStealContainer"
+    local v1547 = 0
+    v1349.Size = UDim2.new(1, v1547, v1547, 30)
+    v1349.BackgroundTransparency = 1
+    v1349.AutomaticSize = Enum.AutomaticSize.Y
+    v1349.Parent = v286
+    local v1327 = Instance.new("TextButton")
+    local v1353 = 0
+    v1327.Size = UDim2.new(1, v1353, v1353, 30)
+    v1327.BackgroundTransparency = 1
+    v1327.Font = Enum.Font.LuckiestGuy
+    local v1553 = 255
+    local v1355 = v1553
+    v1327.TextColor3 = Color3.fromRGB(v1553, v1355, v1355)
+    v1327.TextSize = 14
+    v1327.TextXAlignment = Enum.TextXAlignment.Left
+    v1327.Text = "AUTO STEAL"
+    v1327.Parent = v1349
+    local v290 = Instance.new("TextLabel")
+    local v1519 = 22
+    local v1358 = 0
+    v290.Size = UDim2.new(v1358, v1519, v1358, v1519)
+    v290.Position = UDim2.new(1, -24, 0.5, -11)
+    local v1362 = 40
+    v290.BackgroundColor3 = Color3.fromRGB(v1362, v1362, v1362)
+    v290.Font = Enum.Font.SourceSansBold
+    local v1365 = 255
+    local v1523 = v1365
+    v290.TextColor3 = Color3.fromRGB(v1365, v1523, v1523)
+    v290.TextSize = 14
+    v290.Text = "▲"
+    v290.Parent = v1349
+    local v1569 = Instance.new("UICorner")
+    v1569.CornerRadius = UDim.new(0, 4)
+    v1569.Parent = v290
+    local v291 = Instance.new("Frame")
+    local v1503 = 0
+    v291.Size = UDim2.new(1, v1503, v1503, v1503)
+    local v1429 = 0
+    v291.Position = UDim2.new(v1429, v1429, v1429, 32)
+    v291.BackgroundTransparency = 1
+    v291.Visible = false
+    local v1505 = Enum
+    v291.AutomaticSize = v1505.AutomaticSize.Y
+    v291.Parent = v1349
+    local v1536 = Instance.new("UIListLayout")
+    v1536.SortOrder = v1505.SortOrder.LayoutOrder
+    v1536.Padding = UDim.new(0, 4)
+    v1536.Parent = v291
+    local v292 = false
+    v1327.MouseButton1Click:Connect(function()
+        v292 = not v292
+        local v909 = v292
+        v291.Visible = v909
+        if v909 then
+            v909 = "▼"
+        end
+        if not v909 then
+            v909 = "▲"
+        end
+        v290.Text = v909
+        return
+    end)
+    local v1511 = 1
+    local v1542 = 10
+    local v1307 = v1511
+    if not (v1542 ~= v1542 or (v1307 > 0 and v1511 > v1542 or (v1307 <= 0 or v1307 ~= v1307) and v1511 < v1542)) then
+        repeat
+            local v293 = v1511
+            local v1351 = Instance.new("Frame")
+Balik ke Base
+                                v886.CFrame = CFrame.new(1170, 71, -364) 
+                                task.wait(0.5)
+                            end
+                        end
+                    end
+                    task.wait(0.5)
+                end
+            end)
+        else
+            if v288[v274] then
+                v288[v274].stop()
+                v288[v274] = nil
+            end
+        end
+    end
+    
     local v1349 = Instance.new("Frame")
     v1349.Name = "AutoStealContainer"
     local v1547 = 0
