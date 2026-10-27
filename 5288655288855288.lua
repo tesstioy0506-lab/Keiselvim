@@ -18,7 +18,7 @@ local LocalPlayer = Players.LocalPlayer
 -- ⚙️ KONFIGURASI KOORDINAT
 -- =========================================================================
 local COORDS = {
-    SafeZone = Vector3.new(638.21, 71.67, -385.08),
+    SafeZone = Vector3.new(1154.88, 71.95, -362.98),
     FarmZones = {
         { name = "Zona 1", pos = Vector3.new(708.38, 71.53, -334.12) },
         { name = "Zona 2", pos = Vector3.new(858.88, 71.53, -410.04) },
