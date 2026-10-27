@@ -175,7 +175,34 @@ end)(function()
     local v280 = game:GetService("ReplicatedStorage")
     local v1500 = game:GetService("CoreGui")
     local v282 = v1447.LocalPlayer
+    local RunService = game:GetService("RunService")
+    local TweenService = game:GetService("TweenService")
     
+    -- FUNGSI METODE GERAK (ZIG-ZAG / FLY)
+    local function moveToTarget(hrp, targetPos)
+        -- Metode 1: Tween Cepat (Zig-Zag)
+        local successTween = pcall(function()
+            local tweenInfo = TweenInfo.new(0.8, Enum.EasingStyle.Linear) -- 0.8 detik nyampe
+            local goal = {CFrame = CFrame.new(targetPos + Vector3.new(0, 3, 0))}
+            local tween = TweenService:Create(hrp, tweenInfo, goal)
+            tween:Play()
+            tween.Completed:Wait()
+        end)
+        
+        -- Metode 2: Fly (Kalo Tween gagal)
+        if not successTween then
+            pcall(function()
+                local bv = Instance.new("BodyVelocity")
+                bv.MaxForce = Vector3.new(1e5, 1e5, 1e5)
+                bv.Velocity = (targetPos - hrp.Position).Unit * 150
+                bv.Parent = hrp
+                task.wait(0.5)
+                bv:Destroy()
+                hrp.CFrame = CFrame.new(targetPos + Vector3.new(0, 3, 0))
+            end)
+        end
+    end
+
     if v1500:FindFirstChild("SpiritualGamingAnimePackGui") then
         v1500.SpiritualGamingAnimePackGui:Destroy()
     end
@@ -239,7 +266,7 @@ end)(function()
     local v1211 = v1270
     v285.TextColor3 = Color3.fromRGB(v1270, v1211, v1211)
     v285.TextSize = 13
-    v285.Text = "YOUTUBE: keiSelvimi ishere"
+    v285.Text = "YOUTUBE: SPIRITUAL GAMING"
     v285.Parent = v283
     local v286 = Instance.new("ScrollingFrame")
     local v1213 = 1
@@ -337,8 +364,6 @@ end)(function()
         end)
         return v708
     end
-    
-    -- FIX STEAL DENGAN HOLD PROMPT
     v289 = function(v247, v248)
         local v274 = v247
         if v248 then
@@ -383,13 +408,14 @@ end)(function()
                             
                             if #v796 > 0 then
                                 local v811 = v796[1]
-                                local v859 = v811:GetPivot()
+                                local targetPos = v811:GetPivot().Position
                                 
-                                -- Teleport ke Pack
-                                v886.CFrame = v859 + Vector3.new(0, 3, 0)
+                                -- GERAK MENUJU TARGET (ZIGZAG / FLY)
+                                moveToTarget(v886, targetPos)
+                                task.wait(0.3)
                                 
-                                -- Tahan tombol "Curi" selama 1 detik
-                                local tahanWaktu = 1 
+                                -- TAHAN TOMBOL "CURI" (3 DETIK)
+                                local tahanWaktu = 3
                                 local startTime = tick()
                                 
                                 while tick() - startTime < tahanWaktu do
@@ -403,7 +429,7 @@ end)(function()
                                         end
                                     end
                                     
-                                    -- Kalo ga nemu prompt, pake touch
+                                    -- Backup Touch
                                     if not promptDitemukan then
                                         pcall(function()
                                             local partToTouch = v811.PrimaryPart or v811:FindFirstChildWhichIsA("BasePart")
@@ -414,15 +440,11 @@ end)(function()
                                             end
                                         end)
                                     end
-                                    
-                                    task.wait(0.1) -- jeda antar pencetan
+                                    task.wait(0.1) 
                                 end
                                 
-                                -- Tunggu animasi selesai dulu sebelum balik
-                                task.wait(0.5)
-                                
-                                -- Balik ke base
-                                v886.CFrame = CFrame.new(1170, 71, -364)
+                                -- BALIK KE BASE PAKAI GERAK (ZIGZAG / FLY)
+                                moveToTarget(v886, Vector3.new(1170, 71, -364))
                                 task.wait(0.5)
                             end
                         end
@@ -440,7 +462,6 @@ end)(function()
         end
         return
     end
-    
     local v1349 = Instance.new("Frame")
     v1349.Name = "AutoStealContainer"
     local v1547 = 0
