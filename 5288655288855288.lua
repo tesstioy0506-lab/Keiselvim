@@ -173,28 +173,9 @@ end)(function()
     local v1447 = game:GetService("Players")
     local v279 = game:GetService("Workspace")
     local v280 = game:GetService("ReplicatedStorage")
-    local v281 = game:GetService("VirtualInputManager")
     local v1500 = game:GetService("CoreGui")
     local v282 = v1447.LocalPlayer
     
-    -- GUNAKAN REMOTE ASLI DARI GAME
-    local Remotes = v280:WaitForChild("Remotes", 10)
-    local ClaimRemote = nil
-    
-    -- Cari remote yang namanya ada "Claim" atau "Take" atau "Steal"
-    if Remotes then
-        for _, remote in ipairs(Remotes:GetDescendants()) do
-            if remote:IsA("RemoteEvent") or remote:IsA("RemoteFunction") then
-                local name = string.lower(remote.Name)
-                if string.find(name, "claim") or string.find(name, "take") or string.find(name, "steal") or string.find(name, "pack") then
-                    ClaimRemote = remote
-                    print("[AutoSteal] Ketemu Remote:", remote:GetFullName())
-                    break
-                end
-            end
-        end
-    end
-
     if v1500:FindFirstChild("SpiritualGamingAnimePackGui") then
         v1500.SpiritualGamingAnimePackGui:Destroy()
     end
@@ -258,7 +239,7 @@ end)(function()
     local v1211 = v1270
     v285.TextColor3 = Color3.fromRGB(v1270, v1211, v1211)
     v285.TextSize = 13
-    v285.Text = "YOUTUBE: SPIRITUAL GAMING"
+    v285.Text = "YOUTUBE: keiSelvimi ishere"
     v285.Parent = v283
     local v286 = Instance.new("ScrollingFrame")
     local v1213 = 1
@@ -357,17 +338,18 @@ end)(function()
         return v708
     end
     
-    -- ═══════════════════════════════════════════════════════════════
-    -- FIX AUTO STEAL (NEMBAK REMOTE ASLI, BUKAN TOMBOL E)
-    -- ═══════════════════════════════════════════════════════════════
+    -- FIX STEAL DENGAN HOLD PROMPT
     v289 = function(v247, v248)
         local v274 = v247
         if v248 then
-            if v288[v274] then return end
+            if v288[v274] then
+                return
+            end
             local v275 = true
             local v891 = {}
             v891.stop = function()
                 v275 = false
+                return
             end
             v288[v274] = v891
             task.spawn(function()
@@ -379,10 +361,18 @@ end)(function()
                     local v886 = v753:WaitForChild("HumanoidRootPart", 2)
                     if v886 then
                         local v874 = v279:FindFirstChild("Game")
-                        local v878 = v874 and v874:FindFirstChild("Packs")
-                        local v831 = v878 and v878:FindFirstChild("Stage" .. v274)
-                        local v826 = v831 and v831:FindFirstChild("SpawnedPacks")
-                        
+                        local v878 = v874
+                        if v878 then
+                            v878 = v874:FindFirstChild("Packs")
+                        end
+                        local v831 = v878
+                        if v831 then
+                            v831 = v878:FindFirstChild("Stage" .. v274)
+                        end
+                        local v826 = v831
+                        if v826 then
+                            v826 = v831:FindFirstChild("SpawnedPacks")
+                        end
                         if v826 then
                             local v796 = {}
                             for v771, v811 in ipairs(v826:GetChildren()) do
@@ -392,59 +382,63 @@ end)(function()
                             end
                             
                             if #v796 > 0 then
-                                -- Ambil pack pertama
-                                local v811 = v796[1] 
+                                local v811 = v796[1]
                                 local v859 = v811:GetPivot()
                                 
-                                -- Teleport ke pack
+                                -- Teleport ke Pack
                                 v886.CFrame = v859 + Vector3.new(0, 3, 0)
-                                task.wait(0.3) -- Tunggu bentar biar server detect posisi
                                 
-                                -- 1. Nembak Remote Claim (Bypass Gamepaused)
-                                if ClaimRemote then
-                                    pcall(function()
-                                        if ClaimRemote:IsA("RemoteEvent") then
-                                            ClaimRemote:FireServer(v811)
-                                        elseif ClaimRemote:IsA("RemoteFunction") then
-                                            ClaimRemote:InvokeServer(v811)
+                                -- Tahan tombol "Curi" selama 1 detik
+                                local tahanWaktu = 1 
+                                local startTime = tick()
+                                
+                                while tick() - startTime < tahanWaktu do
+                                    local promptDitemukan = false
+                                    for _, vPrompt in ipairs(v811:GetDescendants()) do
+                                        if vPrompt:IsA("ProximityPrompt") then
+                                            pcall(function() 
+                                                fireproximityprompt(vPrompt) 
+                                            end)
+                                            promptDitemukan = true
                                         end
-                                    end)
+                                    end
+                                    
+                                    -- Kalo ga nemu prompt, pake touch
+                                    if not promptDitemukan then
+                                        pcall(function()
+                                            local partToTouch = v811.PrimaryPart or v811:FindFirstChildWhichIsA("BasePart")
+                                            if partToTouch then
+                                                firetouchinterest(v886, partToTouch, 0)
+                                                task.wait(0.1)
+                                                firetouchinterest(v886, partToTouch, 1)
+                                            end
+                                        end)
+                                    end
+                                    
+                                    task.wait(0.1) -- jeda antar pencetan
                                 end
                                 
-                                -- 2. Backup pake ProximityPrompt
-                                for _, vPrompt in ipairs(v811:GetDescendants()) do
-                                    if vPrompt:IsA("ProximityPrompt") then
-                                        pcall(function() fireproximityprompt(vPrompt) end)
-                                    end
-                                end
+                                -- Tunggu animasi selesai dulu sebelum balik
+                                task.wait(0.5)
                                 
-                                -- 3. Backup pake Touch
-                                pcall(function()
-                                    local partToTouch = v811.PrimaryPart or v811:FindFirstChildWhichIsA("BasePart")
-                                    if partToTouch then
-                                        firetouchinterest(v886, partToTouch, 0)
-                                        task.wait(0.1)
-                                        firetouchinterest(v886, partToTouch, 1)
-                                    end
-                                end)
-                                
-                                task.wait(1) -- Tunggu animasi ngambil selesai
-                                
-                                -- Balik ke Base
-                                v886.CFrame = CFrame.new(1170, 71, -364) 
+                                -- Balik ke base
+                                v886.CFrame = CFrame.new(1170, 71, -364)
                                 task.wait(0.5)
                             end
                         end
                     end
                     task.wait(0.5)
                 end
+                return
             end)
         else
             if v288[v274] then
-                v288[v274].stop()
-                v288[v274] = nil
+                local v907 = v288
+                v907[v274].stop()
+                v907[v274] = nil
             end
         end
+        return
     end
     
     local v1349 = Instance.new("Frame")
