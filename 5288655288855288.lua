@@ -177,22 +177,58 @@ end)(function()
     local v282 = v1447.LocalPlayer
     local TweenService = game:GetService("TweenService")
     
-    local BASE_CFRAME = CFrame.new(1170, 71, -364) -- Koordinat Base
+    local BASE_CFRAME = CFrame.new(1170, 71, -364)
     _G.XYPosEnabled = false
     local isMoving = false
     local currentHoldingPack = nil
     local heldPackOriginalParent = nil
 
-    -- FUNGSI ANTI-DROP (NGUNCI PACK BIAR GA DIJATUHIN)
+    -- FITUR PERTAHANAN (ANTI HIT & TRAP)
+    _G.GodMode = true -- Lu bisa matiin ini di script kalo mau
+    
+    task.spawn(function()
+        while task.wait(0.1) do
+            if _G.GodMode then
+                local char = v282.Character
+                if char then
+                    -- 1. Anti Ragdoll (Kebal jatuh)
+                    local humanoid = char:FindFirstChildOfClass("Humanoid")
+                    if humanoid and humanoid:GetState() == Enum.HumanoidStateType.Physics then
+                        humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+                    end
+                    
+                    -- 2. Noclip & Anti Touch (Kebal mop/player lain)
+                    for _, part in ipairs(char:GetDescendants()) do
+                        if part:IsA("BasePart") then
+                            part.CanCollide = false
+                            part.CanTouch = false
+                        end
+                    end
+                    
+                    -- 3. Anti Perangkap (Trap)
+                    for _, obj in ipairs(v279:GetDescendants()) do
+                        if obj:IsA("BasePart") then
+                            local n = string.lower(obj.Name)
+                            -- Deteksi nama-nama jebakan
+                            if string.find(n, "trap") or string.find(n, "spike") or string.find(n, "laser") or string.find(n, "damage") or string.find(n, "kill") then
+                                obj.CanTouch = false
+                                obj.CanCollide = false
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end)
+
+    -- FUNGSI ANTI-DROP PACK
     local function lockPack(pack)
         if pack and pack.Parent then
             heldPackOriginalParent = pack.Parent
-            -- Pindahin pack ke Camera biar ga bisa di-drop sama server sementara
             pack.Parent = workspace.CurrentCamera
         end
     end
 
-    -- FUNGSI UNLOCK (BALIKIN PACK KE TANGAN KARAKTER)
     local function unlockPack(pack)
         if pack and heldPackOriginalParent then
             pack.Parent = heldPackOriginalParent
@@ -200,51 +236,45 @@ end)(function()
         end
     end
 
-    -- FUNGSI GERAK KE BASE (ZIGZAG / TELEPORT)
+    -- FUNGSI GERAK KE BASE (ZIGZAG / TELEPORT) + SYNC DELAY
     local function goToBase(hrp, pack)
         if isMoving then return end
         isMoving = true
         
-        -- 1. KUNCI PACK BIAR GA HILANG
         lockPack(pack)
-        
-        -- 2. Kunci fisik karakter biar stabil
         hrp.Anchored = true
         
         local startPos = hrp.Position
         local targetPos = BASE_CFRAME.Position
         local distance = (startPos - targetPos).Magnitude
         
-        -- Kalo jarak jauh (Zona 4-10), Teleport Instan
         if distance > 1000 then
             hrp.CFrame = BASE_CFRAME
-            task.wait(0.5)
         else
-            -- Kalo jarak deket (Zona 1-3), Zig-Zag
             local steps = 5
             for i = 1, steps do
                 local t = i / steps
                 local offset = (i % 2 == 0) and Vector3.new(5, 0, 5) or Vector3.new(-5, 0, -5)
                 local currentTarget = startPos:Lerp(targetPos, t) + offset
-                
                 local tweenInfo = TweenInfo.new(0.25, Enum.EasingStyle.Linear)
                 local tween = TweenService:Create(hrp, tweenInfo, {CFrame = CFrame.new(currentTarget + Vector3.new(0, 3, 0))})
                 tween:Play()
                 tween.Completed:Wait()
             end
             hrp.CFrame = BASE_CFRAME
-            task.wait(0.5)
         end
         
-        -- 3. LEPAS KUNCIAN
+        -- Sinkronisasi Server (1.5 detik)
+        task.wait(1.5)
+        
         unlockPack(pack)
         hrp.Anchored = false
-        task.wait(0.5)
+        task.wait(1.5)
         
         isMoving = false
     end
 
-    -- LOOP XY POSITION (DETEKSI PACK)
+    -- LOOP XY POSITION (AUTO TP PACK)
     task.spawn(function()
         while task.wait(0.2) do
             if _G.XYPosEnabled and not isMoving then
