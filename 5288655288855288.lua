@@ -177,39 +177,36 @@ end)(function()
     local v282 = v1447.LocalPlayer
     local TweenService = game:GetService("TweenService")
     
-    local BASE_CFRAME = CFrame.new(1170, 71, -364)
+    local BASE_CFRAME = CFrame.new(1170, 71, -364) 
     _G.XYPosEnabled = false
     local isMoving = false
     local currentHoldingPack = nil
-    local heldPackOriginalParent = nil
 
-    -- FITUR PERTAHANAN (ANTI HIT & TRAP)
-    _G.GodMode = true -- Lu bisa matiin ini di script kalo mau
+    -- FITUR PERTAHANAN (ANTI HIT, TRAP, RAGDOLL) - REAL
+    _G.GodMode = true
     
     task.spawn(function()
         while task.wait(0.1) do
             if _G.GodMode then
                 local char = v282.Character
                 if char then
-                    -- 1. Anti Ragdoll (Kebal jatuh)
                     local humanoid = char:FindFirstChildOfClass("Humanoid")
                     if humanoid and humanoid:GetState() == Enum.HumanoidStateType.Physics then
                         humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
                     end
                     
-                    -- 2. Noclip & Anti Touch (Kebal mop/player lain)
                     for _, part in ipairs(char:GetDescendants()) do
                         if part:IsA("BasePart") then
+                            -- Noclip & Anti Touch (Mop / Player Hit)
                             part.CanCollide = false
                             part.CanTouch = false
                         end
                     end
                     
-                    -- 3. Anti Perangkap (Trap)
+                    -- Anti Trap
                     for _, obj in ipairs(v279:GetDescendants()) do
                         if obj:IsA("BasePart") then
                             local n = string.lower(obj.Name)
-                            -- Deteksi nama-nama jebakan
                             if string.find(n, "trap") or string.find(n, "spike") or string.find(n, "laser") or string.find(n, "damage") or string.find(n, "kill") then
                                 obj.CanTouch = false
                                 obj.CanCollide = false
@@ -221,33 +218,19 @@ end)(function()
         end
     end)
 
-    -- FUNGSI ANTI-DROP PACK
-    local function lockPack(pack)
-        if pack and pack.Parent then
-            heldPackOriginalParent = pack.Parent
-            pack.Parent = workspace.CurrentCamera
-        end
-    end
-
-    local function unlockPack(pack)
-        if pack and heldPackOriginalParent then
-            pack.Parent = heldPackOriginalParent
-            heldPackOriginalParent = nil
-        end
-    end
-
-    -- FUNGSI GERAK KE BASE (ZIGZAG / TELEPORT) + SYNC DELAY
-    local function goToBase(hrp, pack)
+    -- FUNGSI GERAK KE BASE (NO VISUAL / SERVER SYNC)
+    local function goToBase(hrp)
         if isMoving then return end
         isMoving = true
         
-        lockPack(pack)
+        -- 1. Kunci fisik (Anchored)
         hrp.Anchored = true
         
         local startPos = hrp.Position
         local targetPos = BASE_CFRAME.Position
         local distance = (startPos - targetPos).Magnitude
         
+        -- 2. Gerak (Teleport Jauh, ZigZag Deket)
         if distance > 1000 then
             hrp.CFrame = BASE_CFRAME
         else
@@ -264,17 +247,18 @@ end)(function()
             hrp.CFrame = BASE_CFRAME
         end
         
-        -- Sinkronisasi Server (1.5 detik)
-        task.wait(1.5)
+        -- 3. SERVER SYNC (Diem total 2 detik tanpa gerakan)
+        -- Jangan sentuh apapun, biar server nge-sync posisi
+        task.wait(2)
         
-        unlockPack(pack)
+        -- 4. Lepas kunci
         hrp.Anchored = false
         task.wait(1.5)
         
         isMoving = false
     end
 
-    -- LOOP XY POSITION (AUTO TP PACK)
+    -- LOOP XY POSITION (AUTO TP)
     task.spawn(function()
         while task.wait(0.2) do
             if _G.XYPosEnabled and not isMoving then
@@ -301,7 +285,7 @@ end)(function()
                         currentHoldingPack = foundPack
                         local hrp = char:FindFirstChild("HumanoidRootPart")
                         if hrp then
-                            goToBase(hrp, foundPack)
+                            goToBase(hrp)
                         end
                     end
                     
@@ -531,7 +515,7 @@ end)(function()
                             end
                             
                             task.wait(0.5)
-                            goToBase(v886, v811)
+                            goToBase(v886)
                             task.wait(0.5)
                         end
                     end
