@@ -1,9 +1,4 @@
---[[
-    ╔══════════════════════════════════════════════════════════════════════╗
-    ║           KEI SELVIM — TELEPORT PANEL FIX v26.0                      ║
-    ║           Tombol Safe Zone & Zona 1-9 • Kecil • Anti Hilang          ║
-    ╚══════════════════════════════════════════════════════════════════════╝
-]]
+-- [[ KEI SELVIM - FIXED BUTTON PANEL ]]
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
@@ -11,14 +6,8 @@ local CoreGui = game:GetService("CoreGui")
 
 local LocalPlayer = Players.LocalPlayer
 
--- =========================================================================
--- ⚙️ KONFIGURASI KOORDINAT
--- =========================================================================
 local COORDS = {
-    -- Koordinat Safe Zone Baru
     SafeZone = Vector3.new(6.34, 4.48, 83.33),
-    
-    -- Zona Farm
     FarmZones = {
         { name = "Zona 1", pos = Vector3.new(708.38, 71.53, -334.12) },
         { name = "Zona 2", pos = Vector3.new(858.88, 71.53, -410.04) },
@@ -32,58 +21,43 @@ local COORDS = {
     }
 }
 
--- =========================================================================
--- HELPER UI
--- =========================================================================
-local C = {
-    BG = Color3.fromRGB(20, 20, 24), PANEL = Color3.fromRGB(28, 28, 34), BOX = Color3.fromRGB(18, 18, 20),
-    TEXT = Color3.fromRGB(240, 240, 240), DIM = Color3.fromRGB(150, 150, 160),
-    RED = Color3.fromRGB(240, 80, 80), BORDER = Color3.fromRGB(50, 50, 60),
-    ACCENT = Color3.fromRGB(150, 80, 240)
-}
-
 local function create(cls, props)
     local obj = Instance.new(cls)
     for k, v in pairs(props) do if k ~= "Parent" then obj[k] = v end end
     if props.Parent then obj.Parent = props.Parent end
     return obj
 end
-local function addCorner(parent, r) return create("UICorner", { CornerRadius = UDim.new(0, r or 6), Parent = parent }) end
-local function addStroke(parent, col) return create("UIStroke", { Color = col or C.BORDER, Thickness = 1, Parent = parent }) end
 
--- =========================================================================
--- 🎨 BUILD GUI
--- =========================================================================
 local function buildUI()
-    local gui = create("ScreenGui", { Name = "TeleportPanelUI", ResetOnSpawn = false, Parent = CoreGui })
+    local gui = create("ScreenGui", { Name = "PanelUI", ResetOnSpawn = false, Parent = CoreGui })
     
-    -- Frame Utama (Lebar 320, Tinggi 220)
-    local main = create("Frame", { Size = UDim2.new(0, 320, 0, 220), Position = UDim2.new(0.5, -160, 0.5, -110), BackgroundColor3 = C.BG, BorderSizePixel = 0, Parent = gui })
-    addCorner(main, 8); addStroke(main, C.BORDER)
+    -- Frame Utama Kecil (320x150)
+    local main = create("Frame", { Size = UDim2.new(0, 320, 0, 150), Position = UDim2.new(0.5, -160, 0.5, -75), BackgroundColor3 = Color3.fromRGB(20, 20, 24), BorderSizePixel = 0, Parent = gui })
+    create("UICorner", { CornerRadius = UDim.new(0, 8), Parent = main })
 
     -- Header
-    local header = create("Frame", { Size = UDim2.new(1, 0, 0, 25), BackgroundColor3 = C.PANEL, BorderSizePixel = 0, Parent = main })
-    addCorner(header, 8)
-    create("TextLabel", { Size = UDim2.new(1, -40, 1, 0), Position = UDim2.new(0, 10, 0, 0), BackgroundTransparency = 1, Text = "KEI SELVIM — TELEPORT", TextColor3 = C.TEXT, Font = Enum.Font.GothamBold, TextSize = 10, TextXAlignment = Enum.TextXAlignment.Left, Parent = header })
+    local header = create("Frame", { Size = UDim2.new(1, 0, 0, 25), BackgroundColor3 = Color3.fromRGB(28, 28, 34), BorderSizePixel = 0, Parent = main })
+    create("UICorner", { CornerRadius = UDim.new(0, 8), Parent = header })
+    create("TextLabel", { Size = UDim2.new(1, -40, 1, 0), Position = UDim2.new(0, 10, 0, 0), BackgroundTransparency = 1, Text = "KEI SELVIM", TextColor3 = Color3.fromRGB(240, 240, 240), Font = Enum.Font.GothamBold, TextSize = 10, TextXAlignment = Enum.TextXAlignment.Left, Parent = header })
     
     -- Tombol Close
-    local closeBtn = create("TextButton", { Size = UDim2.new(0, 18, 0, 18), Position = UDim2.new(1, -22, 0, 3), BackgroundColor3 = C.RED, Text = "✕", TextColor3 = C.TEXT, Font = Enum.Font.GothamBold, TextSize = 9, BorderSizePixel = 0, Parent = header })
-    addCorner(closeBtn, 4)
+    local closeBtn = create("TextButton", { Size = UDim2.new(0, 18, 0, 18), Position = UDim2.new(1, -22, 0, 3), BackgroundColor3 = Color3.fromRGB(240, 80, 80), Text = "✕", TextColor3 = Color3.fromRGB(255, 255, 255), Font = Enum.Font.GothamBold, TextSize = 9, BorderSizePixel = 0, Parent = header })
+    create("UICorner", { CornerRadius = UDim.new(0, 4), Parent = closeBtn })
     closeBtn.MouseButton1Click:Connect(function() gui:Destroy() end)
 
-    -- ═══════════ TOMBOL SAFE ZONE (FIX 100% MUNCUL) ═══════════
+    -- ═══════════ TOMBOL SAFE ZONE ═══════════
     local btnSafe = create("TextButton", { 
         Size = UDim2.new(1, -20, 0, 35), 
         Position = UDim2.new(0, 10, 0, 35), 
-        BackgroundColor3 = C.RED, 
-        Text = "🛡️ TELEPORT KE SAFE ZONE", 
-        TextColor3 = C.TEXT, 
+        BackgroundColor3 = Color3.fromRGB(240, 80, 80), 
+        Text = "TELEPORT KE SAFE ZONE", 
+        TextColor3 = Color3.fromRGB(255, 255, 255), 
         Font = Enum.Font.GothamBold, 
         TextSize = 12, 
         BorderSizePixel = 0, 
         Parent = main 
     })
-    addCorner(btnSafe, 6); addStroke(btnSafe, C.RED)
+    create("UICorner", { CornerRadius = UDim.new(0, 6), Parent = btnSafe })
     
     btnSafe.MouseButton1Click:Connect(function()
         local char = LocalPlayer.Character
@@ -92,44 +66,18 @@ local function buildUI()
         end
     end)
 
-    -- ═══════════ TOMBOL ZONA 1-9 (GRID) ═══════════
-    create("TextLabel", { 
-        Size = UDim2.new(1, -20, 0, 15), 
+    -- ═══════════ TOMBOL ZONA 1-9 ═══════════
+    local tpContainer = create("Frame", { 
+        Size = UDim2.new(1, -20, 0, 80), 
         Position = UDim2.new(0, 10, 0, 80), 
         BackgroundTransparency = 1, 
-        Text = "Teleport Zona:", 
-        TextColor3 = C.DIM, 
-        Font = Enum.Font.Gotham, 
-        TextSize = 10, 
-        TextXAlignment = Enum.TextXAlignment.Left, 
         Parent = main 
     })
-
-    local tpContainer = create("Frame", { 
-        Size = UDim2.new(1, -20, 0, 100), 
-        Position = UDim2.new(0, 10, 0, 100), 
-        BackgroundTransparency = 1, 
-        Parent = main 
-    })
-    
-    -- Grid 3x3 rapi
-    create("UIGridLayout", { 
-        CellSize = UDim2.new(0.33, -5, 0, 28), 
-        CellPadding = UDim2.new(0, 5, 0, 5), 
-        Parent = tpContainer 
-    })
+    create("UIGridLayout", { CellSize = UDim2.new(0.33, -4, 0, 22), CellPadding = UDim2.new(0, 4, 0, 4), Parent = tpContainer })
 
     for i, zone in ipairs(COORDS.FarmZones) do
-        local tpBtn = create("TextButton", { 
-            BackgroundColor3 = C.PANEL, 
-            Text = "📍 " .. zone.name, 
-            TextColor3 = C.TEXT, 
-            Font = Enum.Font.Gotham, 
-            TextSize = 10, 
-            BorderSizePixel = 0, 
-            Parent = tpContainer 
-        })
-        addCorner(tpBtn, 4); addStroke(tpBtn, C.BORDER)
+        local tpBtn = create("TextButton", { BackgroundColor3 = Color3.fromRGB(28, 28, 34), Text = "Z" .. i, TextColor3 = Color3.fromRGB(240, 240, 240), Font = Enum.Font.GothamBold, TextSize = 10, BorderSizePixel = 0, Parent = tpContainer })
+        create("UICorner", { CornerRadius = UDim.new(0, 4), Parent = tpBtn })
         
         tpBtn.MouseButton1Click:Connect(function()
             local char = LocalPlayer.Character
@@ -139,7 +87,7 @@ local function buildUI()
         end)
     end
 
-    -- Drag Logic
+    -- Drag
     local dragging, dragStart, startPos
     header.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
@@ -157,9 +105,6 @@ local function buildUI()
     end)
 end
 
--- =========================================================================
--- JALANKAN
--- =========================================================================
 task.wait(1)
 local success, err = pcall(buildUI)
 if not success then warn("[UI Error] " .. tostring(err)) end
