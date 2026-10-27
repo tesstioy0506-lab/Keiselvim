@@ -176,39 +176,53 @@ end)(function()
     local v1500 = game:GetService("CoreGui")
     local v282 = v1447.LocalPlayer
     local RunService = game:GetService("RunService")
-    local TweenService = game:GetService("TweenService")
     
-    -- STATE BUAT SISTEM PINTAR (DYNAMIC METHOD)
-    _G.CurrentMoveMethod = "ZigZag" 
+    local BASE_CFRAME = CFrame.new(1170, 71, -364) -- Koordinat Base
+    
+    -- STATE BUAT XY POSITION TP
+    _G.XYPosEnabled = false
+    _G.LastPackCount = 0
 
-    -- FUNGSI GERAK PINTAR
-    local function moveToTarget(hrp, targetPos)
-        if _G.CurrentMoveMethod == "Teleport" then
-            hrp.CFrame = CFrame.new(targetPos + Vector3.new(0, 3, 0))
-        else
-            -- Metode 1: Tween Cepat (Zig-Zag)
-            local successTween = pcall(function()
-                local tweenInfo = TweenInfo.new(0.8, Enum.EasingStyle.Linear)
-                local goal = {CFrame = CFrame.new(targetPos + Vector3.new(0, 3, 0))}
-                local tween = TweenService:Create(hrp, tweenInfo, goal)
-                tween:Play()
-                tween.Completed:Wait()
-            end)
-            
-            -- Metode 2: Fly (Kalo Tween gagal)
-            if not successTween then
-                pcall(function()
-                    local bv = Instance.new("BodyVelocity")
-                    bv.MaxForce = Vector3.new(1e5, 1e5, 1e5)
-                    bv.Velocity = (targetPos - hrp.Position).Unit * 150
-                    bv.Parent = hrp
-                    task.wait(0.5)
-                    bv:Destroy()
-                    hrp.CFrame = CFrame.new(targetPos + Vector3.new(0, 3, 0))
-                end)
+    -- LOOP XY POSITION (KALO PEGANG PACK LANGSUNG TP BASE)
+    task.spawn(function()
+        while task.wait(0.1) do
+            if _G.XYPosEnabled then
+                local char = v282.Character
+                if char then
+                    -- Cek apakah ada pack di dalam karakter (di-tangan/di-hold)
+                    local hasPack = false
+                    local backpack = v282:FindFirstChild("Backpack")
+                    
+                    -- 1. Cek di karakter (kalau udah di-hold/di-equip)
+                    for _, obj in ipairs(char:GetChildren()) do
+                        if (obj:IsA("Tool") or obj:IsA("Model")) and string.find(string.lower(obj.Name), "pack") then
+                            hasPack = true
+                            break
+                        end
+                    end
+                    
+                    -- 2. Cek di Backpack (kalau masuk ke inventory)
+                    if not hasPack and backpack then
+                        for _, obj in ipairs(backpack:GetChildren()) do
+                            if (obj:IsA("Tool") or obj:IsA("Model")) and string.find(string.lower(obj.Name), "pack") then
+                                hasPack = true
+                                break
+                            end
+                        end
+                    end
+                    
+                    if hasPack then
+                        local hrp = char:FindFirstChild("HumanoidRootPart")
+                        if hrp then
+                            -- LANGSUNG TELEPORT KE BASE
+                            hrp.CFrame = BASE_CFRAME
+                            task.wait(1) -- Jeda biar server kedetect
+                        end
+                    end
+                end
             end
         end
-    end
+    end)
 
     if v1500:FindFirstChild("SpiritualGamingAnimePackGui") then
         v1500.SpiritualGamingAnimePackGui:Destroy()
@@ -220,9 +234,9 @@ end)(function()
     local v283 = Instance.new("Frame")
     v283.Name = "MainFrame"
     local v1384 = 0
-    v283.Size = UDim2.new(v1384, 200, v1384, 240)
+    v283.Size = UDim2.new(v1384, 200, v1384, 260) -- Diperpanjang dikit buat menu baru
     local v1386 = 0.5
-    v283.Position = UDim2.new(v1386, -100, v1386, -120)
+    v283.Position = UDim2.new(v1386, -100, v1386, -130)
     local v1388 = 20
     local v1330 = v1388
     v283.BackgroundColor3 = Color3.fromRGB(v1388, v1330, v1330)
@@ -305,7 +319,7 @@ end)(function()
         end
         if not v638 then
             local v634 = 0
-            v638 = UDim2.new(v634, 200, v634, 240)
+            v638 = UDim2.new(v634, 200, v634, 260)
         end
         v283.Size = v638
         local v641 = v287
@@ -371,8 +385,6 @@ end)(function()
         end)
         return v708
     end
-    
-    -- AUTO STEAL DENGAN DYNAMIC METHOD
     v289 = function(v247, v248)
         local v274 = v247
         if v248 then
@@ -418,22 +430,19 @@ end)(function()
                             if #v796 > 0 then
                                 local v811 = v796[1]
                                 local v859 = v811:GetPivot()
+                                -- Berdiri di samping pack, bukan di dalemnya
                                 local targetPos = v859.Position + Vector3.new(3, 0, 0)
                                 
-                                -- 1. GERAK KE PACK (PAKAI ZIGZAG)
-                                moveToTarget(v886, targetPos)
-                                task.wait(0.3)
+                                -- TELEPORT INSTAN KE TARGET
+                                v886.CFrame = CFrame.new(targetPos)
+                                task.wait(0.2)
                                 
-                                -- 2. TAHAN TOMBOL CURI (3 DETIK)
+                                -- TAHAN TOMBOL "CURI" (3 DETIK DENGAN JEDA MANUSIA)
                                 local tahanWaktu = 3
                                 local startTime = tick()
-                                local berhasil = false
                                 
                                 while tick() - startTime < tahanWaktu do
-                                    if not v811.Parent then
-                                        berhasil = true -- Pack ilang, berarti berhasil diambil!
-                                        break 
-                                    end
+                                    if not v811.Parent then break end
                                     
                                     local promptDitemukan = false
                                     for _, vPrompt in ipairs(v811:GetDescendants()) do
@@ -456,20 +465,9 @@ end)(function()
                                     task.wait(0.25) 
                                 end
                                 
-                                -- 3. LOGIKA PINDAH METODE
-                                if berhasil then
-                                    -- Kalo sukses dapet pack, langsung ganti metode balik jadi Teleport
-                                    _G.CurrentMoveMethod = "Teleport"
-                                    print("[AutoSteal] Pack berhasil diambil! Ganti metode ke Teleport.")
-                                else
-                                    -- Kalo gagal, balikin ke ZigZag buat coba lagi
-                                    _G.CurrentMoveMethod = "ZigZag"
-                                end
-                                
                                 task.wait(0.5)
-                                
-                                -- 4. BALIK KE BASE (PAKAI TELEPORT KALO SUKSES)
-                                moveToTarget(v886, Vector3.new(1170, 71, -364))
+                                -- BALIK KE BASE
+                                v886.CFrame = BASE_CFRAME
                                 task.wait(0.5)
                             end
                         end
@@ -764,6 +762,17 @@ end)(function()
         end
         return
     end)
+    
+    -- FITUR BARU: XY POSITION (AUTO TP BASE ON HOLD)
+    v1303("XY POSITION (Auto TP)", function(v194)
+        if v194 then
+            _G.XYPosEnabled = true
+        else
+            _G.XYPosEnabled = false
+        end
+        return
+    end)
+    
     return
 end)
 return
