@@ -1,7 +1,7 @@
 --[[
     ╔══════════════════════════════════════════════════════════════════════╗
-    ║           KEI SELVIM — FIXED UI v23.0                                ║
-    ║           Anti-Bug Teleport • Rapi • Tombol Lengkap                  ║
+    ║           KEI SELVIM — KOTA GUI v17.1                                ║
+    ║           Modern Box UI • Decimal Coordinates • Toggle Features      ║
     ╚══════════════════════════════════════════════════════════════════════╝
 ]]
 
@@ -15,46 +15,37 @@ local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 
 -- =========================================================================
--- ⚙️ KONFIGURASI KOORDINAT
+-- ⚙️ KONFIGURASI & STATE
 -- =========================================================================
-local COORDS = {
-    SafeZone = Vector3.new(638.21, 71.67, -385.08),
-    FarmZones = {
-        { name = "Zona 1", pos = Vector3.new(708.38, 71.53, -334.12) },
-        { name = "Zona 2", pos = Vector3.new(858.88, 71.53, -410.04) },
-        { name = "Zona 3", pos = Vector3.new(1039.63, 71.53, -347.66) },
-        { name = "Zona 4", pos = Vector3.new(1294.86, 71.53, -408.31) },
-        { name = "Zona 5", pos = Vector3.new(1608.88, 71.53, -352.23) },
-        { name = "Zona 6", pos = Vector3.new(1997.18, 71.53, -380.27) },
-        { name = "Zona 7", pos = Vector3.new(2398.09, 71.53, -370.36) },
-        { name = "Zona 8", pos = Vector3.new(2833.26, 71.53, -382.73) },
-        { name = "Zona 9", pos = Vector3.new(3504.75, 71.53, -400.05) },
-    }
-}
-
 local CONFIG = {
     GoodKeywords = {"secret", "eternal", "divine", "mythic", "legendary"},
-    StealDelay = 0.5
+    SafeZoneKeyword = "zona aman",
+    StealDelay = 0.4
 }
 
 local State = {
     AutoSteal = false,
-    AutoFarmZone = false,
+    AutoSafeZone = true,
+    AutoClaim = false,
+    AutoUpgrade = false,
     IsProcessing = false,
     ActiveEggs = {},
-    LastPos = Vector3.zero,
-    SelectedZone = 1,
-    IsHoldingEgg = false
+    LastPos = Vector3.zero
 }
 
 -- =========================================================================
--- HELPER UI
+-- HELPER UI (Desain Kota Minimalis)
 -- =========================================================================
 local C = {
-    BG = Color3.fromRGB(20, 20, 24), PANEL = Color3.fromRGB(28, 28, 34), BOX = Color3.fromRGB(18, 18, 20),
-    TEXT = Color3.fromRGB(240, 240, 240), DIM = Color3.fromRGB(150, 150, 160),
-    GREEN = Color3.fromRGB(100, 220, 150), RED = Color3.fromRGB(240, 80, 80), BORDER = Color3.fromRGB(50, 50, 60),
-    ACCENT = Color3.fromRGB(150, 80, 240)
+    BG      = Color3.fromRGB(20, 20, 24),
+    PANEL   = Color3.fromRGB(28, 28, 34),
+    BOX     = Color3.fromRGB(18, 18, 20),
+    TEXT    = Color3.fromRGB(240, 240, 240),
+    DIM     = Color3.fromRGB(150, 150, 160),
+    ACCENT  = Color3.fromRGB(90, 90, 255),
+    GREEN   = Color3.fromRGB(100, 220, 150),
+    RED     = Color3.fromRGB(240, 80, 80),
+    BORDER  = Color3.fromRGB(50, 50, 60)
 }
 
 local function create(cls, props)
@@ -64,8 +55,13 @@ local function create(cls, props)
     return obj
 end
 
-local function addCorner(parent, r) return create("UICorner", { CornerRadius = UDim.new(0, r or 6), Parent = parent }) end
-local function addStroke(parent, col) return create("UIStroke", { Color = col or C.BORDER, Thickness = 1, Parent = parent }) end
+local function addCorner(parent, r)
+    return create("UICorner", { CornerRadius = UDim.new(0, r or 6), Parent = parent })
+end
+
+local function addStroke(parent, col)
+    return create("UIStroke", { Color = col or C.BORDER, Thickness = 1, Parent = parent })
+end
 
 -- =========================================================================
 -- 🧠 FUNGSI DETEKSI
@@ -89,10 +85,9 @@ local function isBestEgg(obj)
 end
 
 -- =========================================================================
--- 🏃‍♂️ FUNGSI EKSEKUSI (FIX BUG LOMPAT-LOMPAT)
+-- 🏃‍♂️ FUNGSI EKSEKUSI
 -- =========================================================================
 local function processEgg(egg)
-    -- KUNCI: Kalo lagi di tengah jalan nyuri, jangan diganggu
     if State.IsProcessing then return end
     State.IsProcessing = true
     
@@ -102,12 +97,9 @@ local function processEgg(egg)
     local oldPos = hrp.CFrame
     
     print("[🔥 BEST EGG] Ditemukan: " .. egg.Name)
-    
-    -- 1. Teleport ke telur
     hrp.CFrame = CFrame.new(egg.Position + Vector3.new(0, 2, 0))
     task.wait(0.2)
     
-    -- 2. Ambil telur
     local prompt = egg:FindFirstChildOfClass("ProximityPrompt") or egg:FindFirstChild("ProximityPrompt", true)
     if prompt then
         pcall(function() fireproximityprompt(prompt) end)
@@ -118,153 +110,134 @@ local function processEgg(egg)
             firetouchinterest(hrp, egg, 1)
         end)
     end
-    task.wait(0.2) -- Jeda biar server sempet proses
+    task.wait(0.1)
+    hrp.CFrame = oldPos
+    task.wait(0.2)
     
-    -- 3. Teleport ke Safe Zone
-    hrp.CFrame = CFrame.new(COORDS.SafeZone)
-    print("[🛡️] Klaim di Safe Zone.")
-    task.wait(0.8) 
-    
-    -- 4. Balik ke posisi awal / zona
-    if State.AutoFarmZone then
-        local targetZone = COORDS.FarmZones[State.SelectedZone]
-        if targetZone then hrp.CFrame = CFrame.new(targetZone.pos) else hrp.CFrame = oldPos end
-    else
-        hrp.CFrame = oldPos
+    -- Zona Aman
+    if State.AutoSafeZone then
+        local safeZone = nil
+        for _, obj in ipairs(Workspace:GetDescendants()) do
+            if obj:IsA("BasePart") and string.find(string.lower(obj.Name), CONFIG.SafeZoneKeyword) then
+                safeZone = obj
+                break
+            end
+        end
+        if safeZone then
+            hrp.CFrame = CFrame.new(safeZone.Position + Vector3.new(0, 2, 0))
+            task.wait(0.8)
+            hrp.CFrame = oldPos
+        end
     end
-    
-    task.wait(0.5) -- Jeda wajib sebelum nyari telur lagi (BIAR GA BUG)
     State.IsProcessing = false
 end
 
 local function startAutoSteal()
     task.spawn(function()
         while State.AutoSteal do
-            -- Kalo lagi processing, skip scan
-            if not State.IsProcessing then
-                local bestEgg = nil
-                local closestDist = 5000
-                local char = LocalPlayer.Character
-                if char and char:FindFirstChild("HumanoidRootPart") then
-                    local myPos = char.HumanoidRootPart.Position
-                    for _, obj in ipairs(Workspace:GetDescendants()) do
-                        if isBestEgg(obj) then
-                            local dist = (obj.Position - myPos).Magnitude
-                            if dist < closestDist then bestEgg = obj; closestDist = dist end
-                        end
+            local bestEgg = nil
+            local closestDist = 5000
+            local char = LocalPlayer.Character
+            if char and char:FindFirstChild("HumanoidRootPart") then
+                local myPos = char.HumanoidRootPart.Position
+                for _, obj in ipairs(Workspace:GetDescendants()) do
+                    if isBestEgg(obj) then
+                        local dist = (obj.Position - myPos).Magnitude
+                        if dist < closestDist then bestEgg = obj; closestDist = dist end
                     end
                 end
-                if bestEgg then processEgg(bestEgg) end
             end
+            if bestEgg then processEgg(bestEgg) end
             task.wait(CONFIG.StealDelay)
         end
     end)
 end
 
+local function startAutoUpgrade()
+    task.spawn(function()
+        while State.AutoUpgrade do
+            for _, remote in ipairs(ReplicatedStorage:GetDescendants()) do
+                if remote:IsA("RemoteEvent") or remote:IsA("RemoteFunction") then
+                    local rName = string.lower(remote.Name)
+                    if string.find(rName, "upgrade") or string.find(rName, "buy") then
+                        pcall(function()
+                            if remote:IsA("RemoteEvent") then remote:FireServer("Base") remote:FireServer("Treadmill") end
+                            if remote:IsA("RemoteFunction") then remote:InvokeServer("Base") remote:InvokeServer("Treadmill") end
+                        end)
+                    end
+                end
+            end
+            task.wait(2)
+        end
+    end)
+end
+
 -- =========================================================================
--- 🎨 BUILD GUI (FIXED LAYOUT)
+-- 🎨 BUILD GUI
 -- =========================================================================
 local function buildUI()
-    local gui = create("ScreenGui", { Name = "FixedUI", ResetOnSpawn = false, Parent = CoreGui })
+    local gui = create("ScreenGui", { Name = "KotaUI", ResetOnSpawn = false, Parent = CoreGui })
     
-    -- Ukuran fix biar ga berantakan
-    local main = create("Frame", { Size = UDim2.new(0, 520, 0, 200), Position = UDim2.new(0.5, -260, 0.5, -100), BackgroundColor3 = C.BG, BorderSizePixel = 0, Parent = gui })
-    addCorner(main, 8); addStroke(main, C.BORDER)
+    -- Main Frame
+    local main = create("Frame", { Size = UDim2.new(0, 280, 0, 300), Position = UDim2.new(0.5, -140, 0.5, -150), BackgroundColor3 = C.BG, BorderSizePixel = 0, Parent = gui })
+    addCorner(main, 10); addStroke(main, C.BORDER)
 
     -- Header
-    local header = create("Frame", { Size = UDim2.new(1, 0, 0, 25), BackgroundColor3 = C.PANEL, BorderSizePixel = 0, Parent = main })
-    addCorner(header, 8)
-    create("TextLabel", { Size = UDim2.new(1, -40, 1, 0), Position = UDim2.new(0, 10, 0, 0), BackgroundTransparency = 1, Text = "KEI SELVIM — FIXED", TextColor3 = C.TEXT, Font = Enum.Font.GothamBold, TextSize = 10, TextXAlignment = Enum.TextXAlignment.Left, Parent = header })
+    local header = create("Frame", { Size = UDim2.new(1, 0, 0, 40), BackgroundColor3 = C.PANEL, BorderSizePixel = 0, Parent = main })
+    addCorner(header, 10)
+    create("TextLabel", { Size = UDim2.new(1, -40, 1, 0), Position = UDim2.new(0, 15, 0, 0), BackgroundTransparency = 1, Text = "KEI SELVIM", TextColor3 = C.TEXT, Font = Enum.Font.GothamBold, TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left, Parent = header })
     
-    local closeBtn = create("TextButton", { Size = UDim2.new(0, 18, 0, 18), Position = UDim2.new(1, -22, 0, 3), BackgroundColor3 = C.RED, Text = "✕", TextColor3 = C.TEXT, Font = Enum.Font.GothamBold, TextSize = 9, BorderSizePixel = 0, Parent = header })
-    addCorner(closeBtn, 4)
+    local closeBtn = create("TextButton", { Size = UDim2.new(0, 24, 0, 24), Position = UDim2.new(1, -32, 0, 8), BackgroundColor3 = C.RED, Text = "✕", TextColor3 = C.TEXT, Font = Enum.Font.GothamBold, TextSize = 12, BorderSizePixel = 0, Parent = header })
+    addCorner(closeBtn, 6)
+    closeBtn.MouseButton1Click:Connect(function() gui:Destroy() end)
+
+    -- Live Coordinate Display
+    local coordBox = create("Frame", { Size = UDim2.new(1, -20, 0, 45), Position = UDim2.new(0, 10, 0, 50), BackgroundColor3 = C.BOX, BorderSizePixel = 0, Parent = main })
+    addCorner(coordBox, 6); addStroke(coordBox, C.BORDER)
     
-    -- Floating Button (Minimize)
-    local floatBtn = create("TextButton", { Size = UDim2.new(0, 45, 0, 45), Position = UDim2.new(0, 20, 0, 100), BackgroundColor3 = C.ACCENT, Text = "K", TextColor3 = C.TEXT, Font = Enum.Font.GothamBold, TextSize = 18, BorderSizePixel = 0, Visible = false, Parent = gui })
-    addCorner(floatBtn, 22)
+    local coordLbl = create("TextLabel", { Size = UDim2.new(1, -20, 1, 0), Position = UDim2.new(0, 10, 0, 0), BackgroundTransparency = 1, Text = "📍 0.00, 0.00, 0.00", TextColor3 = C.DIM, Font = Enum.Font.Code, TextSize = 13, TextXAlignment = Enum.TextXAlignment.Left, Parent = coordBox })
 
-    closeBtn.MouseButton1Click:Connect(function() main.Visible = false; floatBtn.Visible = true end)
-    floatBtn.MouseButton1Click:Connect(function() main.Visible = true; floatBtn.Visible = false end)
-
-    -- ═══════════ KOLOM 1 (KIRI) ═══════════
-    -- Pakai ukuran pixel (bukan persen) biar ga hancur di HP
-    local col1 = create("Frame", { Size = UDim2.new(0, 160, 0, 150), Position = UDim2.new(0, 10, 0, 35), BackgroundTransparency = 1, Parent = main })
-    
-    local coordBox = create("Frame", { Size = UDim2.new(1, 0, 0, 30), BackgroundColor3 = C.BOX, BorderSizePixel = 0, Parent = col1 })
-    addCorner(coordBox, 4); addStroke(coordBox, C.BORDER)
-    local coordLbl = create("TextLabel", { Size = UDim2.new(1, -8, 1, 0), Position = UDim2.new(0, 4, 0, 0), BackgroundTransparency = 1, Text = "📍 0, 0, 0", TextColor3 = C.DIM, Font = Enum.Code, TextSize = 10, TextXAlignment = Enum.TextXAlignment.Left, Parent = coordBox })
-
+    -- Spawn Tracker Loop
     task.spawn(function()
         while gui.Parent do
             local char = LocalPlayer.Character
             if char and char:FindFirstChild("HumanoidRootPart") then
                 local pos = char.HumanoidRootPart.Position
-                coordLbl.Text = string.format("📍 %.2f, %.2f, %.2f", pos.X, pos.Y, pos.Z)
+                local status = (pos - State.LastPos).Magnitude > 2 and "🟢" or "🔴"
+                
+                -- FORMAT: 2 angka di belakang koma (Contoh: -87.02, 3.75, -180.10)
+                coordLbl.Text = string.format("%s %.2f, %.2f, %.2f", status, pos.X, pos.Y, pos.Z)
+                
+                State.LastPos = pos
             end
             task.wait(0.2)
         end
     end)
 
-    local btnSteal = create("TextButton", { Size = UDim2.new(1, 0, 0, 24), Position = UDim2.new(0, 0, 0, 38), BackgroundColor3 = C.BOX, Text = "Auto Steal: OFF", TextColor3 = C.TEXT, Font = Enum.Font.GothamBold, TextSize = 10, BorderSizePixel = 0, Parent = col1 })
-    addCorner(btnSteal, 4); addStroke(btnSteal, C.BORDER)
-    btnSteal.MouseButton1Click:Connect(function()
-        State.AutoSteal = not State.AutoSteal
-        btnSteal.Text = "Auto Steal: " .. (State.AutoSteal and "ON" or "OFF")
-        btnSteal.BackgroundColor3 = State.AutoSteal and C.GREEN or C.BOX
-        if State.AutoSteal then startAutoSteal() end
-    end)
+    -- Fitur Toggles
+    local features = {
+        { text = "Auto Steal (Best Egg)", state = "AutoSteal", func = startAutoSteal, y = 110 },
+        { text = "Auto Safe Zone (Klaim)", state = "AutoSafeZone", y = 150, defaultOn = true },
+        { text = "Auto Upgrade Base", state = "AutoUpgrade", func = startAutoUpgrade, y = 190 },
+    }
 
-    local btnFarm = create("TextButton", { Size = UDim2.new(1, 0, 0, 24), Position = UDim2.new(0, 0, 0, 68), BackgroundColor3 = C.BOX, Text = "Auto Farm: OFF", TextColor3 = C.TEXT, Font = Enum.Font.GothamBold, TextSize = 10, BorderSizePixel = 0, Parent = col1 })
-    addCorner(btnFarm, 4); addStroke(btnFarm, C.BORDER)
-    btnFarm.MouseButton1Click:Connect(function()
-        State.AutoFarmZone = not State.AutoFarmZone
-        btnFarm.Text = "Auto Farm: " .. (State.AutoFarmZone and "ON" or "OFF")
-        btnFarm.BackgroundColor3 = State.AutoFarmZone and C.GREEN or C.BOX
-    end)
-
-    -- ═══════════ KOLOM 2 (TENGAH) ═══════════
-    local col2 = create("Frame", { Size = UDim2.new(0, 150, 0, 150), Position = UDim2.new(0, 180, 0, 35), BackgroundTransparency = 1, Parent = main })
-    
-    create("TextLabel", { Size = UDim2.new(1, 0, 0, 15), BackgroundTransparency = 1, Text = "Target Auto Farm:", TextColor3 = C.DIM, Font = Enum.Font.Gotham, TextSize = 10, TextXAlignment = Enum.TextXAlignment.Left, Parent = col2 })
-    
-    local zonaContainer = create("Frame", { Size = UDim2.new(1, 0, 0, 50), Position = UDim2.new(0, 0, 0, 20), BackgroundTransparency = 1, Parent = col2 })
-    create("UIGridLayout", { CellSize = UDim2.new(0, 30, 0, 20), CellPadding = UDim2.new(0, 3, 0, 3), Parent = zonaContainer })
-    
-    for i = 1, 9 do
-        local zBtn = create("TextButton", { BackgroundColor3 = (i == 1) and C.ACCENT or C.BOX, Text = tostring(i), TextColor3 = C.TEXT, Font = Enum.Font.GothamBold, TextSize = 10, BorderSizePixel = 0, Parent = zonaContainer })
-        addCorner(zBtn, 3); addStroke(zBtn, C.BORDER)
-        zBtn.MouseButton1Click:Connect(function()
-            State.SelectedZone = i
-            for _, child in ipairs(zonaContainer:GetChildren()) do if child:IsA("TextButton") then child.BackgroundColor3 = C.BOX end end
-            zBtn.BackgroundColor3 = C.ACCENT
+    for _, f in ipairs(features) do
+        local row = create("Frame", { Size = UDim2.new(1, -20, 0, 30), Position = UDim2.new(0, 10, 0, f.y), BackgroundTransparency = 1, Parent = main })
+        create("TextLabel", { Size = UDim2.new(0.7, 0, 1, 0), BackgroundTransparency = 1, Text = f.text, TextColor3 = C.TEXT, Font = Enum.Font.Gotham, TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left, Parent = row })
+        
+        local btn = create("TextButton", { Size = UDim2.new(0, 45, 0, 24), Position = UDim2.new(1, -45, 0, 3), BackgroundColor3 = f.defaultOn and C.GREEN or C.BOX, Text = f.defaultOn and "ON" or "OFF", TextColor3 = C.TEXT, Font = Enum.Font.GothamBold, TextSize = 11, BorderSizePixel = 0, Parent = row })
+        addCorner(btn, 6); addStroke(btn, C.BORDER)
+        
+        btn.MouseButton1Click:Connect(function()
+            State[f.state] = not State[f.state]
+            btn.Text = State[f.state] and "ON" or "OFF"
+            btn.BackgroundColor3 = State[f.state] and C.GREEN or C.BOX
+            if State[f.state] and f.func then f.func() end
         end)
     end
 
-    -- ═══════════ KOLOM 3 (KANAN - TELEPORT) ═══════════
-    local col3 = create("Frame", { Size = UDim2.new(0, 150, 0, 150), Position = UDim2.new(0, 340, 0, 35), BackgroundTransparency = 1, Parent = main })
-
-    create("TextLabel", { Size = UDim2.new(1, 0, 0, 15), BackgroundTransparency = 1, Text = "Menu Teleport:", TextColor3 = C.DIM, Font = Enum.Font.Gotham, TextSize = 10, TextXAlignment = Enum.TextXAlignment.Left, Parent = col3 })
-
-    -- Tombol Safe Zone
-    local btnSafe = create("TextButton", { Size = UDim2.new(1, 0, 0, 25), Position = UDim2.new(0, 0, 0, 20), BackgroundColor3 = C.RED, Text = "🛡️ Safe Zone", TextColor3 = C.TEXT, Font = Enum.Font.GothamBold, TextSize = 10, BorderSizePixel = 0, Parent = col3 })
-    addCorner(btnSafe, 4); addStroke(btnSafe, C.RED)
-    btnSafe.MouseButton1Click:Connect(function()
-        local char = LocalPlayer.Character
-        if char and char:FindFirstChild("HumanoidRootPart") then char.HumanoidRootPart.CFrame = CFrame.new(COORDS.SafeZone) end
-    end)
-
-    -- Tombol Zona (Grid 3x3)
-    local tpContainer = create("Frame", { Size = UDim2.new(1, 0, 0, 90), Position = UDim2.new(0, 0, 0, 50), BackgroundTransparency = 1, Parent = col3 })
-    create("UIGridLayout", { CellSize = UDim2.new(0, 45, 0, 26), CellPadding = UDim2.new(0, 4, 0, 4), Parent = tpContainer })
-
-    for i, zone in ipairs(COORDS.FarmZones) do
-        local tpBtn = create("TextButton", { BackgroundColor3 = C.PANEL, Text = "📍 Z" .. i, TextColor3 = C.TEXT, Font = Enum.Font.Gotham, TextSize = 10, BorderSizePixel = 0, Parent = tpContainer })
-        addCorner(tpBtn, 4); addStroke(tpBtn, C.BORDER)
-        tpBtn.MouseButton1Click:Connect(function()
-            local char = LocalPlayer.Character
-            if char and char:FindFirstChild("HumanoidRootPart") then char.HumanoidRootPart.CFrame = CFrame.new(zone.pos) end
-        end)
-    end
+    -- Footer Info
+    create("TextLabel", { Size = UDim2.new(1, -20, 0, 30), Position = UDim2.new(0, 10, 1, -40), BackgroundTransparency = 1, Text = "Script by Kei Selvim", TextColor3 = C.DIM, Font = Enum.Font.Gotham, TextSize = 10, TextXAlignment = Enum.TextXAlignment.Center, Parent = main })
 
     -- Drag Logic
     local dragging, dragStart, startPos
@@ -285,39 +258,6 @@ local function buildUI()
 end
 
 -- =========================================================================
--- 🔥 AUTO SAFE ZONE KALAU PEGANG TELUR
--- =========================================================================
-task.spawn(function()
-    while task.wait(0.5) do
-        local char = LocalPlayer.Character
-        if char then
-            local isHolding = false
-            for _, obj in ipairs(char:GetDescendants()) do
-                if (obj:IsA("BasePart") or obj:IsA("Model")) then
-                    local n = string.lower(obj.Name)
-                    if string.find(n, "egg") or string.find(n, "telur") then
-                        isHolding = true
-                        break
-                    end
-                end
-            end
-            
-            if isHolding and not State.IsHoldingEgg then
-                State.IsHoldingEgg = true
-                local hrp = char:FindFirstChild("HumanoidRootPart")
-                if hrp then
-                    hrp.CFrame = CFrame.new(COORDS.SafeZone)
-                    task.wait(1)
-                    State.IsHoldingEgg = false
-                end
-            elseif not isHolding then
-                State.IsHoldingEgg = false
-            end
-        end
-    end
-end)
-
--- =========================================================================
 -- EVENT LISTENER
 -- =========================================================================
 Workspace.DescendantAdded:Connect(function(obj)
@@ -333,6 +273,7 @@ Workspace.DescendantAdded:Connect(function(obj)
     end
 end)
 
+-- JALANKAN UI
 task.wait(1)
 local success, err = pcall(buildUI)
-if not success then warn("[UI Error] " .. tostring(err)) end
+if not success then warn("[Kota UI] Error: " .. tostring(err)) end
