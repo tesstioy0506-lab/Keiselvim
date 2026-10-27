@@ -178,28 +178,35 @@ end)(function()
     local RunService = game:GetService("RunService")
     local TweenService = game:GetService("TweenService")
     
-    -- FUNGSI METODE GERAK (ZIG-ZAG / FLY)
+    -- STATE BUAT SISTEM PINTAR (DYNAMIC METHOD)
+    _G.CurrentMoveMethod = "ZigZag" 
+
+    -- FUNGSI GERAK PINTAR
     local function moveToTarget(hrp, targetPos)
-        -- Metode 1: Tween Cepat (Zig-Zag)
-        local successTween = pcall(function()
-            local tweenInfo = TweenInfo.new(0.8, Enum.EasingStyle.Linear) -- 0.8 detik nyampe
-            local goal = {CFrame = CFrame.new(targetPos + Vector3.new(0, 3, 0))}
-            local tween = TweenService:Create(hrp, tweenInfo, goal)
-            tween:Play()
-            tween.Completed:Wait()
-        end)
-        
-        -- Metode 2: Fly (Kalo Tween gagal)
-        if not successTween then
-            pcall(function()
-                local bv = Instance.new("BodyVelocity")
-                bv.MaxForce = Vector3.new(1e5, 1e5, 1e5)
-                bv.Velocity = (targetPos - hrp.Position).Unit * 150
-                bv.Parent = hrp
-                task.wait(0.5)
-                bv:Destroy()
-                hrp.CFrame = CFrame.new(targetPos + Vector3.new(0, 3, 0))
+        if _G.CurrentMoveMethod == "Teleport" then
+            hrp.CFrame = CFrame.new(targetPos + Vector3.new(0, 3, 0))
+        else
+            -- Metode 1: Tween Cepat (Zig-Zag)
+            local successTween = pcall(function()
+                local tweenInfo = TweenInfo.new(0.8, Enum.EasingStyle.Linear)
+                local goal = {CFrame = CFrame.new(targetPos + Vector3.new(0, 3, 0))}
+                local tween = TweenService:Create(hrp, tweenInfo, goal)
+                tween:Play()
+                tween.Completed:Wait()
             end)
+            
+            -- Metode 2: Fly (Kalo Tween gagal)
+            if not successTween then
+                pcall(function()
+                    local bv = Instance.new("BodyVelocity")
+                    bv.MaxForce = Vector3.new(1e5, 1e5, 1e5)
+                    bv.Velocity = (targetPos - hrp.Position).Unit * 150
+                    bv.Parent = hrp
+                    task.wait(0.5)
+                    bv:Destroy()
+                    hrp.CFrame = CFrame.new(targetPos + Vector3.new(0, 3, 0))
+                end)
+            end
         end
     end
 
@@ -364,6 +371,8 @@ end)(function()
         end)
         return v708
     end
+    
+    -- AUTO STEAL DENGAN DYNAMIC METHOD
     v289 = function(v247, v248)
         local v274 = v247
         if v248 then
@@ -408,42 +417,58 @@ end)(function()
                             
                             if #v796 > 0 then
                                 local v811 = v796[1]
-                                local targetPos = v811:GetPivot().Position
+                                local v859 = v811:GetPivot()
+                                local targetPos = v859.Position + Vector3.new(3, 0, 0)
                                 
-                                -- GERAK MENUJU TARGET (ZIGZAG / FLY)
+                                -- 1. GERAK KE PACK (PAKAI ZIGZAG)
                                 moveToTarget(v886, targetPos)
                                 task.wait(0.3)
                                 
-                                -- TAHAN TOMBOL "CURI" (3 DETIK)
+                                -- 2. TAHAN TOMBOL CURI (3 DETIK)
                                 local tahanWaktu = 3
                                 local startTime = tick()
+                                local berhasil = false
                                 
                                 while tick() - startTime < tahanWaktu do
+                                    if not v811.Parent then
+                                        berhasil = true -- Pack ilang, berarti berhasil diambil!
+                                        break 
+                                    end
+                                    
                                     local promptDitemukan = false
                                     for _, vPrompt in ipairs(v811:GetDescendants()) do
                                         if vPrompt:IsA("ProximityPrompt") then
-                                            pcall(function() 
-                                                fireproximityprompt(vPrompt) 
-                                            end)
+                                            pcall(function() fireproximityprompt(vPrompt) end)
                                             promptDitemukan = true
                                         end
                                     end
                                     
-                                    -- Backup Touch
                                     if not promptDitemukan then
                                         pcall(function()
                                             local partToTouch = v811.PrimaryPart or v811:FindFirstChildWhichIsA("BasePart")
                                             if partToTouch then
                                                 firetouchinterest(v886, partToTouch, 0)
-                                                task.wait(0.1)
+                                                task.wait(0.05)
                                                 firetouchinterest(v886, partToTouch, 1)
                                             end
                                         end)
                                     end
-                                    task.wait(0.1) 
+                                    task.wait(0.25) 
                                 end
                                 
-                                -- BALIK KE BASE PAKAI GERAK (ZIGZAG / FLY)
+                                -- 3. LOGIKA PINDAH METODE
+                                if berhasil then
+                                    -- Kalo sukses dapet pack, langsung ganti metode balik jadi Teleport
+                                    _G.CurrentMoveMethod = "Teleport"
+                                    print("[AutoSteal] Pack berhasil diambil! Ganti metode ke Teleport.")
+                                else
+                                    -- Kalo gagal, balikin ke ZigZag buat coba lagi
+                                    _G.CurrentMoveMethod = "ZigZag"
+                                end
+                                
+                                task.wait(0.5)
+                                
+                                -- 4. BALIK KE BASE (PAKAI TELEPORT KALO SUKSES)
                                 moveToTarget(v886, Vector3.new(1170, 71, -364))
                                 task.wait(0.5)
                             end
