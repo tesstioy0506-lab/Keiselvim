@@ -1,6 +1,6 @@
 --[[
     ╔══════════════════════════════════════════════════════════════════════╗
-    ║           KEI SELVIM — COORDINATE ZONE FARMER v19.0                  ║
+    ║           KEI SELVIM — COORDINATE ZONE FARMER v19.0 ALL MAPP BISA GW WAKK               ║
     ║           Custom Safe Zone • Farm Zones • Manual Teleports           ║
     ╚══════════════════════════════════════════════════════════════════════╝
 ]]
