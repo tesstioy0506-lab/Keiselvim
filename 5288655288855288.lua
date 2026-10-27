@@ -179,73 +179,104 @@ end)(function()
     
     local BASE_CFRAME = CFrame.new(1170, 71, -364) -- Koordinat Base
     _G.XYPosEnabled = false
-    local isZigZagging = false
+    local isMoving = false
+    local currentHoldingPack = nil
+    local heldPackOriginalParent = nil
 
-    -- FUNGSI ZIG-ZAG (TWEEN CEPAT)
-    local function zigZagToBase(hrp)
-        if isZigZagging then return end
-        isZigZagging = true
-        
-        -- Simulasi lari cepat zig-zag
-        local startPos = hrp.Position
-        local targetPos = BASE_CFRAME.Position
-        local steps = 5
-        
-        for i = 1, steps do
-            local t = i / steps
-            -- Bikin gerakan memutar (zig-zag)
-            local offset = (i % 2 == 0) and Vector3.new(5, 0, 5) or Vector3.new(-5, 0, -5)
-            local currentTarget = startPos:Lerp(targetPos, t) + offset
-            
-            local tweenInfo = TweenInfo.new(0.3, Enum.EasingStyle.Linear)
-            local tween = TweenService:Create(hrp, tweenInfo, {CFrame = CFrame.new(currentTarget + Vector3.new(0, 3, 0))})
-            tween:Play()
-            tween.Completed:Wait()
+    -- FUNGSI ANTI-DROP (NGUNCI PACK BIAR GA DIJATUHIN)
+    local function lockPack(pack)
+        if pack and pack.Parent then
+            heldPackOriginalParent = pack.Parent
+            -- Pindahin pack ke Camera biar ga bisa di-drop sama server sementara
+            pack.Parent = workspace.CurrentCamera
         end
-        
-        -- Sampai di base
-        hrp.CFrame = BASE_CFRAME
-        task.wait(1)
-        isZigZagging = false
     end
 
-    -- LOOP XY POSITION (KALO PEGANG PACK LANGSUNG ZIG-ZAG KE BASE)
+    -- FUNGSI UNLOCK (BALIKIN PACK KE TANGAN KARAKTER)
+    local function unlockPack(pack)
+        if pack and heldPackOriginalParent then
+            pack.Parent = heldPackOriginalParent
+            heldPackOriginalParent = nil
+        end
+    end
+
+    -- FUNGSI GERAK KE BASE (ZIGZAG / TELEPORT)
+    local function goToBase(hrp, pack)
+        if isMoving then return end
+        isMoving = true
+        
+        -- 1. KUNCI PACK BIAR GA HILANG
+        lockPack(pack)
+        
+        -- 2. Kunci fisik karakter biar stabil
+        hrp.Anchored = true
+        
+        local startPos = hrp.Position
+        local targetPos = BASE_CFRAME.Position
+        local distance = (startPos - targetPos).Magnitude
+        
+        -- Kalo jarak jauh (Zona 4-10), Teleport Instan
+        if distance > 1000 then
+            hrp.CFrame = BASE_CFRAME
+            task.wait(0.5)
+        else
+            -- Kalo jarak deket (Zona 1-3), Zig-Zag
+            local steps = 5
+            for i = 1, steps do
+                local t = i / steps
+                local offset = (i % 2 == 0) and Vector3.new(5, 0, 5) or Vector3.new(-5, 0, -5)
+                local currentTarget = startPos:Lerp(targetPos, t) + offset
+                
+                local tweenInfo = TweenInfo.new(0.25, Enum.EasingStyle.Linear)
+                local tween = TweenService:Create(hrp, tweenInfo, {CFrame = CFrame.new(currentTarget + Vector3.new(0, 3, 0))})
+                tween:Play()
+                tween.Completed:Wait()
+            end
+            hrp.CFrame = BASE_CFRAME
+            task.wait(0.5)
+        end
+        
+        -- 3. LEPAS KUNCIAN
+        unlockPack(pack)
+        hrp.Anchored = false
+        task.wait(0.5)
+        
+        isMoving = false
+    end
+
+    -- LOOP XY POSITION (DETEKSI PACK)
     task.spawn(function()
-        while task.wait(0.1) do
-            if _G.XYPosEnabled and not isZigZagging then
+        while task.wait(0.2) do
+            if _G.XYPosEnabled and not isMoving then
                 local char = v282.Character
                 if char then
-                    local hasPack = false
+                    local foundPack = nil
+                    local backpack = v282:FindFirstChild("Backpack")
                     
                     for _, obj in ipairs(char:GetChildren()) do
                         if obj:IsA("Tool") or (obj:IsA("Model") and string.find(string.lower(obj.Name), "pack")) then
-                            hasPack = true
-                            break
+                            foundPack = obj; break
                         end
                     end
                     
-                    local backpack = v282:FindFirstChild("Backpack")
-                    if not hasPack and backpack then
+                    if not foundPack and backpack then
                         for _, obj in ipairs(backpack:GetChildren()) do
                             if obj:IsA("Tool") or (obj:IsA("Model") and string.find(string.lower(obj.Name), "pack")) then
-                                hasPack = true
-                                break
+                                foundPack = obj; break
                             end
                         end
                     end
                     
-                    if not hasPack then
-                        if v282:GetAttribute("HasPack") or v282:GetAttribute("HoldingPack") then
-                            hasPack = true
+                    if foundPack and currentHoldingPack ~= foundPack then
+                        currentHoldingPack = foundPack
+                        local hrp = char:FindFirstChild("HumanoidRootPart")
+                        if hrp then
+                            goToBase(hrp, foundPack)
                         end
                     end
                     
-                    if hasPack then
-                        local hrp = char:FindFirstChild("HumanoidRootPart")
-                        if hrp then
-                            -- LANGSUNG ZIG-ZAG KE BASE
-                            zigZagToBase(hrp)
-                        end
+                    if not foundPack then
+                        currentHoldingPack = nil
                     end
                 end
             end
@@ -470,7 +501,7 @@ end)(function()
                             end
                             
                             task.wait(0.5)
-                            zigZagToBase(v886) -- BALIK KE BASE PAKE ZIGZAG
+                            goToBase(v886, v811)
                             task.wait(0.5)
                         end
                     end
