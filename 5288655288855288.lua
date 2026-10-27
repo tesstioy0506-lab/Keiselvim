@@ -175,48 +175,76 @@ end)(function()
     local v280 = game:GetService("ReplicatedStorage")
     local v1500 = game:GetService("CoreGui")
     local v282 = v1447.LocalPlayer
-    local RunService = game:GetService("RunService")
+    local TweenService = game:GetService("TweenService")
     
     local BASE_CFRAME = CFrame.new(1170, 71, -364) -- Koordinat Base
-    
-    -- STATE BUAT XY POSITION TP
     _G.XYPosEnabled = false
-    _G.LastPackCount = 0
+    local isZigZagging = false
 
-    -- LOOP XY POSITION (KALO PEGANG PACK LANGSUNG TP BASE)
+    -- FUNGSI ZIG-ZAG (TWEEN CEPAT)
+    local function zigZagToBase(hrp)
+        if isZigZagging then return end
+        isZigZagging = true
+        
+        -- Simulasi lari cepat zig-zag
+        local startPos = hrp.Position
+        local targetPos = BASE_CFRAME.Position
+        local steps = 5
+        
+        for i = 1, steps do
+            local t = i / steps
+            -- Bikin gerakan memutar (zig-zag)
+            local offset = (i % 2 == 0) and Vector3.new(5, 0, 5) or Vector3.new(-5, 0, -5)
+            local currentTarget = startPos:Lerp(targetPos, t) + offset
+            
+            local tweenInfo = TweenInfo.new(0.3, Enum.EasingStyle.Linear)
+            local tween = TweenService:Create(hrp, tweenInfo, {CFrame = CFrame.new(currentTarget + Vector3.new(0, 3, 0))})
+            tween:Play()
+            tween.Completed:Wait()
+        end
+        
+        -- Sampai di base
+        hrp.CFrame = BASE_CFRAME
+        task.wait(1)
+        isZigZagging = false
+    end
+
+    -- LOOP XY POSITION (KALO PEGANG PACK LANGSUNG ZIG-ZAG KE BASE)
     task.spawn(function()
         while task.wait(0.1) do
-            if _G.XYPosEnabled then
+            if _G.XYPosEnabled and not isZigZagging then
                 local char = v282.Character
                 if char then
-                    -- Cek apakah ada pack di dalam karakter (di-tangan/di-hold)
                     local hasPack = false
-                    local backpack = v282:FindFirstChild("Backpack")
                     
-                    -- 1. Cek di karakter (kalau udah di-hold/di-equip)
                     for _, obj in ipairs(char:GetChildren()) do
-                        if (obj:IsA("Tool") or obj:IsA("Model")) and string.find(string.lower(obj.Name), "pack") then
+                        if obj:IsA("Tool") or (obj:IsA("Model") and string.find(string.lower(obj.Name), "pack")) then
                             hasPack = true
                             break
                         end
                     end
                     
-                    -- 2. Cek di Backpack (kalau masuk ke inventory)
+                    local backpack = v282:FindFirstChild("Backpack")
                     if not hasPack and backpack then
                         for _, obj in ipairs(backpack:GetChildren()) do
-                            if (obj:IsA("Tool") or obj:IsA("Model")) and string.find(string.lower(obj.Name), "pack") then
+                            if obj:IsA("Tool") or (obj:IsA("Model") and string.find(string.lower(obj.Name), "pack")) then
                                 hasPack = true
                                 break
                             end
                         end
                     end
                     
+                    if not hasPack then
+                        if v282:GetAttribute("HasPack") or v282:GetAttribute("HoldingPack") then
+                            hasPack = true
+                        end
+                    end
+                    
                     if hasPack then
                         local hrp = char:FindFirstChild("HumanoidRootPart")
                         if hrp then
-                            -- LANGSUNG TELEPORT KE BASE
-                            hrp.CFrame = BASE_CFRAME
-                            task.wait(1) -- Jeda biar server kedetect
+                            -- LANGSUNG ZIG-ZAG KE BASE
+                            zigZagToBase(hrp)
                         end
                     end
                 end
@@ -234,7 +262,7 @@ end)(function()
     local v283 = Instance.new("Frame")
     v283.Name = "MainFrame"
     local v1384 = 0
-    v283.Size = UDim2.new(v1384, 200, v1384, 260) -- Diperpanjang dikit buat menu baru
+    v283.Size = UDim2.new(v1384, 200, v1384, 260)
     local v1386 = 0.5
     v283.Position = UDim2.new(v1386, -100, v1386, -130)
     local v1388 = 20
@@ -388,88 +416,62 @@ end)(function()
     v289 = function(v247, v248)
         local v274 = v247
         if v248 then
-            if v288[v274] then
-                return
-            end
+            if v288[v274] then return end
             local v275 = true
             local v891 = {}
-            v891.stop = function()
-                v275 = false
-                return
-            end
+            v891.stop = function() v275 = false end
             v288[v274] = v891
             task.spawn(function()
                 while v275 do
                     local v753 = v282.Character
-                    if not v753 then
-                        v753 = v282.CharacterAdded:Wait()
-                    end
+                    if not v753 then v753 = v282.CharacterAdded:Wait() end
                     local v886 = v753:WaitForChild("HumanoidRootPart", 2)
                     if v886 then
-                        local v874 = v279:FindFirstChild("Game")
-                        local v878 = v874
-                        if v878 then
-                            v878 = v874:FindFirstChild("Packs")
-                        end
-                        local v831 = v878
-                        if v831 then
-                            v831 = v878:FindFirstChild("Stage" .. v274)
-                        end
-                        local v826 = v831
-                        if v826 then
-                            v826 = v831:FindFirstChild("SpawnedPacks")
-                        end
-                        if v826 then
-                            local v796 = {}
-                            for v771, v811 in ipairs(v826:GetChildren()) do
-                                if v811:IsA("Model") then
-                                    table.insert(v796, v811)
+                        local allPacks = {}
+                        for _, obj in ipairs(v279:GetDescendants()) do
+                            if obj:IsA("Model") and (string.find(string.lower(obj.Name), "pack") or string.find(string.lower(obj.Name), "anime")) then
+                                if not obj:IsDescendantOf(v753) then
+                                    table.insert(allPacks, obj)
                                 end
+                            end
+                        end
+                        
+                        if #allPacks > 0 then
+                            local v811 = allPacks[1]
+                            local v859 = v811:GetPivot()
+                            local targetPos = v859.Position + Vector3.new(3, 0, 0)
+                            
+                            v886.CFrame = CFrame.new(targetPos)
+                            task.wait(0.3)
+                            
+                            local tahanWaktu = 3
+                            local startTime = tick()
+                            
+                            while tick() - startTime < tahanWaktu do
+                                if not v811.Parent then break end
+                                local promptDitemukan = false
+                                for _, vPrompt in ipairs(v811:GetDescendants()) do
+                                    if vPrompt:IsA("ProximityPrompt") then
+                                        pcall(function() fireproximityprompt(vPrompt) end)
+                                        promptDitemukan = true
+                                    end
+                                end
+                                if not promptDitemukan then
+                                    pcall(function()
+                                        local partToTouch = v811.PrimaryPart or v811:FindFirstChildWhichIsA("BasePart")
+                                        if partToTouch then
+                                            firetouchinterest(v886, partToTouch, 0)
+                                            task.wait(0.1)
+                                            firetouchinterest(v886, partToTouch, 1)
+                                        end
+                                    end)
+                                end
+                                task.wait(0.25) 
                             end
                             
-                            if #v796 > 0 then
-                                local v811 = v796[1]
-                                local v859 = v811:GetPivot()
-                                -- Berdiri di samping pack, bukan di dalemnya
-                                local targetPos = v859.Position + Vector3.new(3, 0, 0)
-                                
-                                -- TELEPORT INSTAN KE TARGET
-                                v886.CFrame = CFrame.new(targetPos)
-                                task.wait(0.2)
-                                
-                                -- TAHAN TOMBOL "CURI" (3 DETIK DENGAN JEDA MANUSIA)
-                                local tahanWaktu = 3
-                                local startTime = tick()
-                                
-                                while tick() - startTime < tahanWaktu do
-                                    if not v811.Parent then break end
-                                    
-                                    local promptDitemukan = false
-                                    for _, vPrompt in ipairs(v811:GetDescendants()) do
-                                        if vPrompt:IsA("ProximityPrompt") then
-                                            pcall(function() fireproximityprompt(vPrompt) end)
-                                            promptDitemukan = true
-                                        end
-                                    end
-                                    
-                                    if not promptDitemukan then
-                                        pcall(function()
-                                            local partToTouch = v811.PrimaryPart or v811:FindFirstChildWhichIsA("BasePart")
-                                            if partToTouch then
-                                                firetouchinterest(v886, partToTouch, 0)
-                                                task.wait(0.05)
-                                                firetouchinterest(v886, partToTouch, 1)
-                                            end
-                                        end)
-                                    end
-                                    task.wait(0.25) 
-                                end
-                                
-                                task.wait(0.5)
-                                -- BALIK KE BASE
-                                v886.CFrame = BASE_CFRAME
-                                task.wait(0.5)
-                            end
+                            task.wait(0.5)
+                            zigZagToBase(v886) -- BALIK KE BASE PAKE ZIGZAG
+                            task.wait(0.5)
                         end
                     end
                     task.wait(0.5)
@@ -478,9 +480,8 @@ end)(function()
             end)
         else
             if v288[v274] then
-                local v907 = v288
-                v907[v274].stop()
-                v907[v274] = nil
+                v288[v274].stop()
+                v288[v274] = nil
             end
         end
         return
@@ -571,7 +572,7 @@ end)(function()
             v1188.TextColor3 = Color3.fromRGB(v1406, v1406, v1406)
             v1188.TextSize = 13
             v1188.TextXAlignment = Enum.TextXAlignment.Left
-            v1188.Text = "Stage " .. v293
+            v1188.Text = "Auto Steal All"
             v1188.Parent = v1351
             local v294 = Instance.new("TextButton")
             local v1376 = 20
@@ -611,104 +612,47 @@ end)(function()
                 local v142 = v280:WaitForChild("Remotes"):WaitForChild("LuckMachine"):WaitForChild("Upgrade", 5)
                 while true do
                     local v951 = _G.LuckRunning
-                    if v951 then
-                        v951 = v142
-                    end
-                    if not v951 then
-                        break
-                    end
-                    pcall(function()
-                        v142:InvokeServer("One")
-                        return
-                    end)
+                    if v951 then v951 = v142 end
+                    if not v951 then break end
+                    pcall(function() v142:InvokeServer("One") end)
                     task.wait(0.4)
                 end
-                return
             end)
-        else
-            _G.LuckRunning = false
-        end
-        return
+        else _G.LuckRunning = false end
     end)
     v1303("2X TRAIN", function(v143)
         if v143 then
             _G.TrainRunning = true
             task.spawn(function()
-                local v1001, v999 = pcall(function()
-                    return require(v280:WaitForChild("Shared"):WaitForChild("Modules"):WaitForChild("Remotes"))
-                end)
-                local v995 = v1001
-                if v995 then
-                    v995 = v999
-                end
-                if v995 then
+                local v1001, v999 = pcall(function() return require(v280:WaitForChild("Shared"):WaitForChild("Modules"):WaitForChild("Remotes")) end)
+                if v1001 and v999 then
                     local v167 = v999.Get("Treadmill", "Boost")
                     local v987 = v167:Connect(function(v155)
-                        local v162 = v155
-                        local v983 = _G.TrainRunning
-                        if v983 then
-                            v983 = v162
-                        end
-                        if v983 then
-                            pcall(function()
-                                v167:Fire(v162)
-                                return
-                            end)
-                        end
-                        return
+                        if _G.TrainRunning then pcall(function() v167:Fire(v155) end) end
                     end)
-                    while _G.TrainRunning do
-                        task.wait(1)
-                    end
-                    if v987 then
-                        v987:Disconnect()
-                    end
+                    while _G.TrainRunning do task.wait(1) end
+                    if v987 then v987:Disconnect() end
                 end
-                return
             end)
-        else
-            _G.TrainRunning = false
-        end
-        return
+        else _G.TrainRunning = false end
     end)
     v1303("AUTO REBIRTH", function(v168)
         if v168 then
             _G.RebirthRunning = true
             task.spawn(function()
-                local v1063, v1061 = pcall(function()
-                    return require(v280:WaitForChild("Shared"):WaitForChild("Modules"):WaitForChild("Remotes"))
-                end)
-                local v191 = v1061
-                local v1065, v1059 = pcall(function()
-                    return require(v280:WaitForChild("Shared"):WaitForChild("Configs"):WaitForChild("RebirthConfig"))
-                end)
-                local v192 = v1059
-                local v1066 = v1063
-                if v1066 then
-                    v1066 = v1065
-                end
-                if v1066 then
-                    v1066 = v191
-                end
-                if v1066 then
-                    v1066 = v192
-                end
-                if v1066 then
+                local v1063, v1061 = pcall(function() return require(v280:WaitForChild("Shared"):WaitForChild("Modules"):WaitForChild("Remotes")) end)
+                local v1065, v1059 = pcall(function() return require(v280:WaitForChild("Shared"):WaitForChild("Configs"):WaitForChild("RebirthConfig")) end)
+                if v1063 and v1065 and v1061 and v1059 then
                     while _G.RebirthRunning do
                         pcall(function()
-                            local v1047 = v192
-                            v191.Get(v1047.Remote.Namespace, v1047.Remote.Request):Invoke()
-                            return
+                            local v1047 = v1059
+                            v1061.Get(v1047.Remote.Namespace, v1047.Remote.Request):Invoke()
                         end)
                         task.wait(1)
                     end
                 end
-                return
             end)
-        else
-            _G.RebirthRunning = false
-        end
-        return
+        else _G.RebirthRunning = false end
     end)
     v1303("SELL ALL", function(v193)
         if v193 then
@@ -716,61 +660,32 @@ end)(function()
             task.spawn(function()
                 local v219 = v280:WaitForChild("Remotes"):WaitForChild("Economy"):WaitForChild("SellItems", 5)
                 while true do
-                    local v1172 = _G.SellRunning
-                    if v1172 then
-                        v1172 = v219
-                    end
-                    if not v1172 then
-                        break
-                    end
+                    if not _G.SellRunning then break end
                     local v220 = {}
-                    local v1101 = {}
-                    local v1110 = v282:FindFirstChild("Backpack")
-                    local v1165 = v282:FindFirstChild("Inventory")
-                    local v1091 = v282:FindFirstChild("Units")
-                    v1101[4], v1101[3], v1101[1], v1101[2] = v282:FindFirstChild("Characters"), v1091, v1110, v1165
-                    __mv.j(v1101, 5, v282:FindFirstChild("Storage"))
-                    for v1092, v1139 in ipairs(v1101) do
+                    local v1101 = {
+                        v282:FindFirstChild("Backpack"),
+                        v282:FindFirstChild("Inventory"),
+                        v282:FindFirstChild("Characters"),
+                        v282:FindFirstChild("Units"),
+                        v282:FindFirstChild("Storage")
+                    }
+                    for _, v1139 in ipairs(v1101) do
                         if v1139 then
-                            for v1143, v1118 in ipairs(v1139:GetChildren()) do
-                                local v1142 = v1118:GetAttribute("PackId")
-                                local v1146 = not v1142
-                                if v1146 then
-                                    v1146 = v1118:FindFirstChild("PackId")
-                                end
-                                if v1146 then
-                                    v1142 = v1118.PackId.Value
-                                end
-                                if v1142 then
-                                    table.insert(v220, tostring(v1142))
-                                end
+                            for _, v1118 in ipairs(v1139:GetChildren()) do
+                                local v1142 = v1118:GetAttribute("PackId") or (v1118:FindFirstChild("PackId") and v1118.PackId.Value)
+                                if v1142 then table.insert(v220, tostring(v1142)) end
                             end
                         end
                     end
-                    if #v220 > 0 then
-                        pcall(function()
-                            v219:InvokeServer(v220)
-                            return
-                        end)
-                    end
+                    if #v220 > 0 then pcall(function() v219:InvokeServer(v220) end) end
                     task.wait(0.4)
                 end
-                return
             end)
-        else
-            _G.SellRunning = false
-        end
-        return
+        else _G.SellRunning = false end
     end)
     
-    -- FITUR BARU: XY POSITION (AUTO TP BASE ON HOLD)
     v1303("XY POSITION (Auto TP)", function(v194)
-        if v194 then
-            _G.XYPosEnabled = true
-        else
-            _G.XYPosEnabled = false
-        end
-        return
+        _G.XYPosEnabled = v194
     end)
     
     return
